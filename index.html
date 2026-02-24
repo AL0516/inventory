@@ -761,7 +761,12 @@ textarea{resize:vertical;min-height:72px;}
 // =============================================
 // STATE
 // =============================================
-let GAS_URL = localStorage.getItem('gas_url') || '';
+// 🔧 請填入你的 GAS Web App URL（從 Apps Script 複製）
+let GAS_URL = 'YOUR_GAS_URL_HERE';
+// 如果上面空白，會嘗試從 localStorage 讀取
+if(!GAS_URL || GAS_URL === 'https://script.google.com/macros/s/AKfycbzVANE23EreY2gOypq5TGbRlPBqWh3uIpHEo1c5R0UWOzBBZCB5q2k7Z9IL7oNlbVnUdQ/exec') {
+  GAS_URL = localStorage.getItem('gas_url') || '';
+}
 let allProducts   = [];
 let allPurchases  = [];
 let allCategories = [];
