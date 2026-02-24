@@ -918,6 +918,16 @@ async function callGAS(action, data={}) {
 async function callGAS_get(action, data={}) {
   const payload = encodeURIComponent(JSON.stringify({action, ...data}));
   const url     = GAS_URL + '?action=' + action + '&payload=' + payload;
+  
+  // 🔍 DEBUG：顯示請求細節
+  console.log('🔍 callGAS_get 呼叫:', {
+    action: action,
+    dataKeys: Object.keys(data),
+    itemsCount: data.items ? data.items.length : 0,
+    urlLength: url.length,
+    urlPreview: url.substring(0, 200) + '...'
+  });
+  
   try {
     const res   = await fetch(url, {method:'GET', redirect:'follow'});
     const text  = await res.text();
@@ -1696,11 +1706,19 @@ async function runImport() {
   progress.textContent = `送出 ${items.length} 筆資料…`;
 
   try {
+    console.log('🚀 準備呼叫 batchImport:', {
+      type: schema.type,
+      itemsCount: items.length,
+      firstItem: items[0]
+    });
+    
     // 一次 request 送全部
     const res = await callGAS('batchImport', {
       type:  schema.type,
       items: items,
     });
+    
+    console.log('✅ batchImport 回應:', res);
 
     const ok   = res.ok   || 0;
     const fail = res.fail || 0;
