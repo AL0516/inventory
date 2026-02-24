@@ -897,9 +897,13 @@ const GAS_CHUNK_SIZE = 5;
 async function callGAS(action, data={}) {
   if(!GAS_URL){ showToast('請先在系統設定中填入 GAS URL','warning'); throw new Error('No GAS URL'); }
 
-  // batchImport：自動分批，並行送出
-  if(action === 'batchImport' && data.items && data.items.length > GAS_CHUNK_SIZE) {
-    return callGAS_chunked(data);
+  // batchImport：自動分批，並行送出（包含單筆）
+  if(action === 'batchImport' && data.items) {
+    if(data.items.length > GAS_CHUNK_SIZE) {
+      return callGAS_chunked(data);
+    }
+    // 單筆或小批次直接送
+    return callGAS_get('batchImport', data);
   }
 
   return callGAS_get(action, data);
