@@ -892,7 +892,7 @@ function openGasEditor(e) {
 // =============================================
 // GAS_CHUNK_SIZE：每次 GET 最多帶幾筆資料
 // GAS URL 安全上限約 6KB，每筆商品約 200~400 bytes，保守設 12 筆
-const GAS_CHUNK_SIZE = 12;
+const GAS_CHUNK_SIZE = 5;
 
 async function callGAS(action, data={}) {
   if(!GAS_URL){ showToast('請先在系統設定中填入 GAS URL','warning'); throw new Error('No GAS URL'); }
