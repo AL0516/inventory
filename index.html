@@ -943,7 +943,7 @@ async function callGAS_get(action, data={}) {
   }
 }
 
-// 分批並行送出（全部同時發，速度快）
+// 分批「依序」送出（避免並行衝突，確保資料完整）
 async function callGAS_chunked(data) {
   const items  = data.items;
   const type   = data.type;
@@ -952,22 +952,24 @@ async function callGAS_chunked(data) {
     chunks.push(items.slice(i, i + GAS_CHUNK_SIZE));
   }
 
-  // 更新進度文字
   const progress = document.getElementById('imp-progress');
-  if(progress) progress.textContent = `分 ${chunks.length} 批同時送出…`;
+  let totalOk = 0, totalFail = 0;
 
-  // 全部 chunk 同時發出（Promise.all）
-  const results = await Promise.all(
-    chunks.map(chunk => callGAS_get('batchImport', {type, items: chunk}))
-  );
+  // 改用 for loop「依序」發送，避免並行衝突
+  for(let i = 0; i < chunks.length; i++) {
+    if(progress) progress.textContent = `處理中：第 ${i+1} / ${chunks.length} 批...`;
+    
+    try {
+      const result = await callGAS_get('batchImport', {type, items: chunks[i]});
+      totalOk   += (result.ok   || 0);
+      totalFail += (result.fail || 0);
+    } catch(e) {
+      console.error(`第 ${i+1} 批失敗:`, e);
+      totalFail += chunks[i].length;
+    }
+  }
 
-  // 合計結果
-  const total = results.reduce((acc, r) => ({
-    ok:   (acc.ok   || 0) + (r.ok   || 0),
-    fail: (acc.fail || 0) + (r.fail || 0),
-  }), {ok:0, fail:0});
-
-  return total;
+  return {ok: totalOk, fail: totalFail};
 }
 // =============================================
 // DASHBOARD
