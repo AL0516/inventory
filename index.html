@@ -527,10 +527,10 @@ textarea{resize:vertical;min-height:72px;}
       <input type="hidden" id="pm-id">
 
       <!-- 基本資訊 -->
-      <div class="form-row">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;">
         <div class="form-group">
           <label>商品名稱 *</label>
-          <input type="text" id="pm-name" placeholder="商品名稱">
+          <input type="text" id="pm-name" placeholder="例：OB11 連身洋裝 A 款">
         </div>
         <div class="form-group">
           <label>分類 *</label>
@@ -540,18 +540,27 @@ textarea{resize:vertical;min-height:72px;}
 
       <div class="form-group">
         <label>圖片網址（Google 雲端硬碟分享連結）</label>
-        <input type="url" id="pm-image" placeholder="https://drive.google.com/..." oninput="previewImage()">
-        <div id="image-preview-wrap" style="margin-top:8px;display:none;">
+        <input type="url" id="pm-image" placeholder="https://drive.google.com/file/d/..." oninput="previewImage()">
+        
+        <!-- 雲端轉換器 -->
+        <div style="margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">🔧 快速轉換工具</div>
+          <div style="display:flex;gap:6px;">
+            <input type="url" id="drive-url-input" placeholder="貼上 Google Drive 分享連結" style="flex:1;font-size:12.5px;padding:6px 10px;">
+            <button onclick="convertDriveUrl()" class="btn btn-outline btn-sm">轉換</button>
+          </div>
+        </div>
+        
+        <div id="image-preview-wrap" style="margin-top:10px;display:none;">
           <img id="image-preview" style="max-height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;background:var(--surface2);padding:4px;">
           <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">預覽</span>
         </div>
-        <div style="font-size:11.5px;color:var(--text-light);margin-top:4px;">💡 需將 Google 雲端連結改為直接連結格式，見下方說明</div>
       </div>
 
       <div class="section-divider">顏色</div>
       <div class="form-group" style="margin-top:10px;">
         <label>選擇顏色（可多選）</label>
-        <div id="pm-color-picker" class="color-picker-grid"></div>
+        <div id="pm-color-picker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;max-height:180px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);"></div>
       </div>
 
       <div class="section-divider">尺寸</div>
@@ -613,21 +622,7 @@ textarea{resize:vertical;min-height:72px;}
         <textarea id="pm-notes" placeholder="選填備註…"></textarea>
       </div>
 
-      <!-- Google Drive 說明 -->
-      <details style="margin-top:4px;">
-        <summary style="font-size:12.5px;color:var(--text-muted);cursor:pointer;user-select:none;">📎 如何轉換 Google 雲端硬碟連結？</summary>
-        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-top:8px;font-size:12.5px;color:var(--text-muted);line-height:1.8;">
-          <strong style="color:var(--text);">步驟：</strong><br>
-          1. 在 Google 雲端硬碟對圖片按右鍵 → <strong>取得連結</strong> → 設定為「知道連結的任何人」<br>
-          2. 複製連結，格式如：<code style="background:var(--border);padding:1px 5px;border-radius:4px;font-size:11.5px;">https://drive.google.com/file/d/<strong>【檔案ID】</strong>/view</code><br>
-          3. 取出中間的 <strong>檔案ID</strong>，貼到下方框中，系統會自動轉換：<br>
-          <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
-            <input id="drive-url-input" type="text" placeholder="貼上 Google Drive 分享連結" style="flex:1;font-size:12px;">
-            <button class="btn btn-outline btn-sm" onclick="convertDriveUrl()">轉換</button>
-          </div>
-          <div id="drive-url-result" style="margin-top:6px;font-size:12px;color:var(--primary);word-break:break-all;"></div>
-        </div>
-      </details>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('product-modal')">取消</button>
@@ -1073,7 +1068,6 @@ function renderProductsTable(products){
         <div class="product-img">${p.imageUrl?`<img src="${convertDriveUrlDirect(p.imageUrl)}" onerror="this.parentElement.innerHTML='📦'">`:'📦'}</div>
         <div>
           <div class="product-name">${p.name}</div>
-          <div class="product-id">#${p.id}</div>
         </div>
       </div></td>
       <td><span class="badge badge-gray">${p.category||'—'}</span></td>
@@ -1132,18 +1126,19 @@ function openProductModal(product=null){
   const catSel=document.getElementById('pm-category');
   catSel.innerHTML='<option value="">選擇分類</option>'+allCategories.map(c=>`<option value="${c.name}" ${c.name===product?.category?'selected':''}>${c.name}</option>`).join('');
 
-  // Color picker
+  // Color picker (checkbox list)
   const selColors=parseColors(product?.colors);
   const picker=document.getElementById('pm-color-picker');
   picker.innerHTML=allColors.map(c=>{
     const sel=selColors.includes(c.name);
-    const lightness=hexLightness(c.hex);
-    const textColor=lightness>160?'#2c2a27':'#ffffff';
-    return `<div class="color-option ${sel?'selected':''}" 
-      style="border-color:${c.hex};background:${sel?c.hex:'transparent'};color:${sel?textColor:'var(--text)'};"
-      onclick="toggleColorOption(this,'${c.name}','${c.hex}')">
-      <span class="dot" style="background:${c.hex};border:1px solid rgba(0,0,0,.15);"></span>${c.name}
-    </div>`;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .2s;" 
+      onmouseover="this.style.background='var(--surface2)'" 
+      onmouseout="this.style.background='transparent'">
+      <input type="checkbox" ${sel?'checked':''} value="${c.name}" 
+        style="width:16px;height:16px;cursor:pointer;accent-color:${c.hex};">
+      <span class="color-dot" style="background:${c.hex};width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.1);flex-shrink:0;"></span>
+      <span style="font-size:13px;color:var(--text);">${c.name}</span>
+    </label>`;
   }).join('');
 
   // Image preview
@@ -1151,18 +1146,7 @@ function openProductModal(product=null){
   openModal('product-modal');
 }
 
-function toggleColorOption(el,name,hex){
-  el.classList.toggle('selected');
-  const lightness=hexLightness(hex);
-  const textColor=lightness>160?'#2c2a27':'#ffffff';
-  if(el.classList.contains('selected')){
-    el.style.background=hex;
-    el.style.color=textColor;
-  } else {
-    el.style.background='transparent';
-    el.style.color='var(--text)';
-  }
-}
+// toggleColorOption 已移除（改用原生 checkbox）
 
 function editProduct(p){ openProductModal(p); }
 
@@ -1173,7 +1157,7 @@ async function saveProduct(){
   if(!name){showToast('請填入商品名稱','error');return;}
   if(!category){showToast('請選擇分類','error');return;}
 
-  const selectedColors=[...document.querySelectorAll('#pm-color-picker .color-option.selected')].map(el=>el.textContent.trim());
+  const selectedColors=[...document.querySelectorAll('#pm-color-picker input[type=checkbox]:checked')].map(el=>el.value);
 
   const data={
     id,name,category,
