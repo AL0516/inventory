@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>庫存管理系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f5f2;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --border: #e8e3dc;
+  --primary: #3d7a6f;
+  --primary-light: #e8f2f0;
+  --primary-dark: #2d5c53;
+  --accent: #e8855a;
+  --accent-light: #fdf0ea;
+  --warning: #e8a23a;
+  --warning-light: #fef7e8;
+  --danger: #d95f5f;
+  --danger-light: #fdeaea;
+  --text: #2c2a27;
+  --text-muted: #8a857c;
+  --text-light: #bab5ad;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* SIDEBAR */
+.sidebar{width:240px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;box-shadow:var(--shadow-sm);}
+.sidebar-logo{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.sidebar-logo h1{font-family:'Playfair Display',serif;font-size:18px;color:var(--primary);letter-spacing:-0.3px;line-height:1.3;}
+.sidebar-logo span{font-size:11px;color:var(--text-muted);font-weight:400;letter-spacing:0.5px;}
+.sidebar-nav{padding:16px 12px;flex:1;}
+.nav-label{font-size:10px;font-weight:600;letter-spacing:1.2px;color:var(--text-light);text-transform:uppercase;padding:4px 12px 8px;margin-top:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:500;color:var(--text-muted);transition:all .18s ease;margin-bottom:2px;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600;}
+.nav-item .icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.sidebar-footer{padding:16px 24px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light);}
+
+/* MAIN */
+.main{margin-left:240px;flex:1;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-title{font-size:20px;font-weight:600;color:var(--text);}
+.topbar-actions{display:flex;gap:10px;align-items:center;}
+#conn-indicator{transition:all .25s;}
+.page{padding:28px 32px;display:none;animation:fadeIn .2s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .16s ease;text-decoration:none;line-height:1;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px);box-shadow:0 4px 12px rgba(61,122,111,.3);}
+.btn-outline{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-outline:hover{background:var(--surface2);color:var(--text);border-color:#d0cac2;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-danger:hover{background:#c24e4e;}
+.btn-sm{padding:6px 12px;font-size:12.5px;}
+.btn-xs{padding:4px 9px;font-size:12px;}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:20px 22px;border:1px solid var(--border);box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.stat-card.green::before{background:var(--primary);}
+.stat-card.orange::before{background:var(--accent);}
+.stat-card.yellow::before{background:var(--warning);}
+.stat-card.red::before{background:var(--danger);}
+.stat-label{font-size:11.5px;color:var(--text-muted);font-weight:500;letter-spacing:.3px;margin-bottom:10px;}
+.stat-value{font-size:32px;font-weight:700;font-family:'Playfair Display',serif;color:var(--text);line-height:1;margin-bottom:4px;}
+.stat-sub{font-size:11.5px;color:var(--text-light);margin-top:6px;}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:20px;}
+.card-header{padding:18px 22px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.card-title{font-size:15px;font-weight:600;color:var(--text);}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;}
+th{padding:11px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);}
+td{padding:11px 14px;font-size:13.5px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:#faf9f7;}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:500;}
+.badge-green{background:var(--primary-light);color:var(--primary);}
+.badge-orange{background:var(--accent-light);color:var(--accent);}
+.badge-yellow{background:var(--warning-light);color:#b8750a;}
+.badge-red{background:var(--danger-light);color:var(--danger);}
+.badge-gray{background:var(--surface2);color:var(--text-muted);}
+
+/* COLOR DOTS */
+.color-dots{display:flex;flex-wrap:wrap;gap:4px;}
+.color-dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(0,0,0,.12);display:inline-block;cursor:default;position:relative;}
+.color-dot[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:3px 8px;border-radius:5px;font-size:11px;white-space:nowrap;pointer-events:none;z-index:10;}
+
+/* PRODUCT IMAGE */
+.product-img{width:44px;height:44px;border-radius:8px;overflow:hidden;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.product-img img{width:100%;height:100%;object-fit:cover;}
+.product-info{display:flex;align-items:center;gap:12px;}
+.product-name{font-weight:500;font-size:14px;}
+.product-id{font-size:11.5px;color:var(--text-light);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,42,39,.45);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:18px;width:90%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .22s ease;}
+.modal-lg{max-width:780px;}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-header{padding:22px 24px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2;}
+.modal-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--text);}
+.modal-close{width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);color:var(--text-muted);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.modal-close:hover{background:var(--border);color:var(--text);}
+.modal-body{padding:22px 24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--surface);}
+
+/* FORM */
+.form-group{margin-bottom:16px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.form-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.2px;}
+input,select,textarea{width:100%;padding:10px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);transition:border-color .15s,box-shadow .15s;outline:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(61,122,111,.12);background:#fff;}
+textarea{resize:vertical;min-height:72px;}
+.input-unit{position:relative;}
+.input-unit input{padding-right:38px;}
+.input-unit .unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-light);font-weight:500;pointer-events:none;}
+
+/* COLOR MANAGER */
+.color-manager-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;}
+.color-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:100px;border:1.5px solid;font-size:13px;font-weight:500;}
+.color-chip .dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;}
+.color-chip .remove{background:none;border:none;cursor:pointer;opacity:.5;font-size:14px;line-height:1;padding:0 0 0 2px;transition:opacity .15s;}
+.color-chip .remove:hover{opacity:1;}
+
+.color-add-row{display:flex;gap:10px;align-items:flex-end;}
+.color-preview{width:38px;height:38px;border-radius:var(--radius-sm);border:1px solid var(--border);flex-shrink:0;}
+
+/* MULTI-SELECT COLOR PICKER IN MODAL */
+.color-picker-grid{display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;}
+.color-option{display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 6px;border-radius:100px;border:1.5px solid;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;user-select:none;}
+.color-option .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+.color-option.selected{box-shadow:0 0 0 2px var(--primary);}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:280px;}
+.search-wrap input{padding-left:34px;}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-light);font-size:14px;pointer-events:none;}
+
+/* LOADING / EMPTY */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text-muted);gap:10px;font-size:14px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted);}
+.empty-icon{font-size:36px;margin-bottom:10px;opacity:.5;}
+.empty-text{font-size:14px;}
+
+/* TOAST */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;}
+.toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;box-shadow:var(--shadow-lg);animation:toastIn .25s ease;max-width:320px;display:flex;align-items:center;gap:8px;}
+.toast.success{background:var(--primary);}
+.toast.error{background:var(--danger);}
+.toast.warning{background:var(--warning);color:var(--text);}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* SECTION DIVIDER */
+.section-divider{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-light);padding:8px 0 4px;margin-top:8px;border-top:1px solid var(--border);}
+
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.config-banner{background:linear-gradient(135deg,var(--primary-light),#e0eeec);border:1px solid #bcd9d5;border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;}
+.config-banner-icon{font-size:22px;}
+.config-banner-text{flex:1;font-size:13.5px;color:var(--primary-dark);}
+.config-banner-text strong{display:block;margin-bottom:2px;font-size:14px;}
+
+@media(max-width:900px){.stats-grid{grid-template-columns:1fr 1fr;}.settings-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>庫存管理<br>系統</h1>
+    <span style="margin-top:4px;display:block;">Inventory Manager</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">總覽</div>
+    <div class="nav-item active" onclick="navigate('dashboard')">
+      <span class="icon">📊</span>控制台
+    </div>
+    <div class="nav-label">管理</div>
+    <div class="nav-item" onclick="navigate('products')">
+      <span class="icon">📦</span>商品管理
+    </div>
+    <div class="nav-item" onclick="navigate('purchases')">
+      <span class="icon">🚚</span>進貨管理
+    </div>
+    <div class="nav-item" onclick="navigate('catalog')">
+      <span class="icon">🏷️</span>分類與顏色
+    </div>
+    <div class="nav-label">工具</div>
+    <div class="nav-item" onclick="navigate('import')">
+      <span class="icon">📥</span>匯入資料
+    </div>
+    <div class="nav-label">設定</div>
+    <div class="nav-item" onclick="navigate('settings')">
+      <span class="icon">⚙️</span>系統設定
+    </div>
+  </nav>
+  <div class="sidebar-footer">小組版 · 最多 5 人</div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">控制台</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <!-- 連線狀態指示器 -->
+      <div id="conn-indicator" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;background:var(--surface2);border:1px solid var(--border);font-size:12.5px;font-weight:500;color:var(--text-muted);cursor:default;transition:all .2s;" title="連線狀態">
+        <span id="conn-dot" style="width:7px;height:7px;border-radius:50%;background:var(--text-light);flex-shrink:0;transition:background .3s;"></span>
+        <span id="conn-label">未連線</span>
+      </div>
+      <!-- Google Sheets 連結 -->
+      <a id="sheets-link" href="https://docs.google.com/spreadsheets/d/1OwXDTFKrb68LA8XzmXRdvPO3qBi5izQOMqNTkEajEtA/edit" target="_blank" class="btn btn-outline btn-sm" title="開啟 Google Sheets" style="gap:5px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        試算表
+      </a>
+      <!-- GAS 連結 -->
+      <a id="gas-link" href="#" target="_blank" class="btn btn-outline btn-sm" title="開啟 Apps Script" style="gap:5px;" onclick="openGasEditor(event)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Apps Script
+      </a>
+      <button onclick="refreshAll()" class="btn btn-outline btn-sm" title="重新載入所有資料" style="padding:6px 10px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="display:block;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+  </div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="page active" id="page-dashboard">
+    <div class="stats-grid">
+      <div class="stat-card green">
+        <div class="stat-label">商品總數</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-sub">種商品</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">本月進貨</div>
+        <div class="stat-value" id="stat-month">—</div>
+        <div class="stat-sub">筆紀錄</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">低庫存商品</div>
+        <div class="stat-value" id="stat-low">—</div>
+        <div class="stat-sub">需補貨</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">零庫存商品</div>
+        <div class="stat-value" id="stat-zero">—</div>
+        <div class="stat-sub">項缺貨</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚠️ 低庫存警示</span></div>
+        <div id="low-stock-list"><div class="loading"><div class="spinner"></div>載入中…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🚚 最近進貨</span></div>
+        <div id="recent-purchases"><div class="loading"><div class="spinner"></div>載入中…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PRODUCTS ===== -->
+  <div class="page" id="page-products">
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="product-search" placeholder="搜尋商品名稱…" oninput="filterProducts()">
+      </div>
+      <select id="category-filter" onchange="filterProducts()" style="max-width:150px;">
+        <option value="">所有分類</option>
+      </select>
+      <select id="color-filter" onchange="filterProducts()" style="max-width:150px;">
+        <option value="">所有顏色</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">商品清單</span>
+        <span id="product-count" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div>
+        <table>
+          <thead>
+            <tr>
+              <th>商品</th>
+              <th>分類</th>
+              <th>顏色</th>
+              <th>尺寸 (長×寬×高)</th>
+              <th>總長</th>
+              <th>數量</th>
+              <th>售價</th>
+              <th>進貨價</th>
+              <th>狀態</th>
+              <th style="text-align:right;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <tr><td colspan="10"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PURCHASES ===== -->
+  <div class="page" id="page-purchases">
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="purchase-search" placeholder="搜尋商品名稱…" oninput="filterPurchases()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">進貨紀錄</span>
+        <span id="purchase-count" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>商品</th>
+            <th>數量</th>
+            <th>台幣（TWD）</th>
+            <th>韓元（KRW）</th>
+            <th>備註</th>
+          </tr>
+        </thead>
+        <tbody id="purchases-tbody">
+          <tr><td colspan="6"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== CATALOG (分類 & 顏色) ===== -->
+  <div class="page" id="page-catalog">
+    <div class="settings-grid">
+
+      <!-- 分類管理 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🏷️ 分類管理</span>
+          <button class="btn btn-primary btn-sm" onclick="openCategoryModal()">＋ 新增分類</button>
+        </div>
+        <div style="padding:16px;">
+          <table>
+            <thead>
+              <tr>
+                <th>分類名稱</th>
+                <th>商品數</th>
+                <th style="text-align:right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="categories-tbody">
+              <tr><td colspan="3"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 顏色管理 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎨 顏色管理</span>
+          <button class="btn btn-primary btn-sm" onclick="openColorModal()">＋ 新增顏色</button>
+        </div>
+        <div style="padding:16px;">
+          <table>
+            <thead>
+              <tr>
+                <th>顏色</th>
+                <th>名稱</th>
+                <th>商品數</th>
+                <th style="text-align:right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="colors-tbody">
+              <tr><td colspan="4"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div class="page" id="page-settings">
+    <div style="max-width:560px;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚙️ Google Apps Script 設定</span></div>
+        <div style="padding:22px 24px;">
+          <div class="config-banner">
+            <span class="config-banner-icon">🔗</span>
+            <div class="config-banner-text">
+              <strong>連接你的 Google Apps Script</strong>
+              部署 GAS 後，將 Web App URL 貼到下方並儲存
+            </div>
+          </div>
+          <div class="form-group">
+            <label>GAS Web App URL</label>
+            <input type="url" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec">
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px;">
+            <button class="btn btn-primary" onclick="saveGasUrl()">💾 儲存設定</button>
+            <button class="btn btn-outline" onclick="testConnection()">🔌 測試連線</button>
+          </div>
+          <div id="connection-status" style="margin-top:14px;font-size:13px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== IMPORT ===== -->
+  <div class="page" id="page-import">
+    <div style="max-width:820px;">
+
+      <div class="config-banner" style="margin-bottom:20px;">
+        <span class="config-banner-icon">📋</span>
+        <div class="config-banner-text">
+          <strong>貼上試算表資料，批次匯入</strong>
+          從 Google Sheets / Excel 複製整段資料貼入，系統自動解析後寫入資料庫
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+        <button class="imp-tab btn" id="itab-products"   onclick="switchImpTab('products')"  style="background:var(--primary);color:#fff;">📦 商品</button>
+        <button class="imp-tab btn btn-outline" id="itab-purchases"  onclick="switchImpTab('purchases')">🚚 進貨紀錄</button>
+        <button class="imp-tab btn btn-outline" id="itab-categories" onclick="switchImpTab('categories')">🏷️ 分類</button>
+        <button class="imp-tab btn btn-outline" id="itab-colors"     onclick="switchImpTab('colors')">🎨 顏色</button>
+      </div>
+
+      <!-- 欄位說明 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title" id="imp-schema-title">欄位說明</span>
+          <button class="btn btn-outline btn-sm" onclick="pasteExample()">填入範例</button>
+        </div>
+        <div style="padding:14px 20px;overflow-x:auto;">
+          <div id="imp-schema-table"></div>
+        </div>
+      </div>
+
+      <!-- 貼上區 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title">貼上資料</span>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <label style="font-size:13px;color:var(--text-muted);font-weight:400;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="imp-has-header" checked style="width:14px;height:14px;">
+              第一列是標題
+            </label>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('imp-textarea').value='';renderPreview()">清除</button>
+          </div>
+        </div>
+        <div style="padding:16px 20px;">
+          <textarea id="imp-textarea"
+            style="width:100%;min-height:160px;font-size:13px;font-family:monospace;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);resize:vertical;outline:none;line-height:1.6;"
+            placeholder="從 Google Sheets 複製資料後貼在這裡&#10;（Ctrl+A 選取整張表，Ctrl+C 複製，然後貼入）"
+            oninput="renderPreview()"></textarea>
+        </div>
+      </div>
+
+      <!-- 預覽表格 -->
+      <div class="card" id="imp-preview-card" style="margin-bottom:20px;display:none;">
+        <div class="card-header">
+          <span class="card-title">預覽 <span id="imp-preview-count" style="font-size:12px;color:var(--text-muted);font-weight:400;"></span></span>
+          <div id="imp-warning" style="font-size:12.5px;color:var(--warning);"></div>
+        </div>
+        <div style="overflow-x:auto;max-height:320px;overflow-y:auto;">
+          <table>
+            <thead id="imp-preview-head"></thead>
+            <tbody id="imp-preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 匯入按鈕 -->
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button class="btn btn-primary" id="imp-submit-btn" onclick="runImport()" disabled style="min-width:140px;">
+          ⬆️ 開始匯入
+        </button>
+        <div id="imp-progress" style="font-size:13.5px;color:var(--text-muted);"></div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- ===== MODAL: 商品 ===== -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="product-modal-title">新增商品</div>
+      <button class="modal-close" onclick="closeModal('product-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-id">
+
+      <!-- 基本資訊 -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>商品名稱 *</label>
+          <input type="text" id="pm-name" placeholder="商品名稱">
+        </div>
+        <div class="form-group">
+          <label>分類 *</label>
+          <select id="pm-category"><option value="">選擇分類</option></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>圖片網址（Google 雲端硬碟分享連結）</label>
+        <input type="url" id="pm-image" placeholder="https://drive.google.com/..." oninput="previewImage()">
+        <div id="image-preview-wrap" style="margin-top:8px;display:none;">
+          <img id="image-preview" style="max-height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;background:var(--surface2);padding:4px;">
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">預覽</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-light);margin-top:4px;">💡 需將 Google 雲端連結改為直接連結格式，見下方說明</div>
+      </div>
+
+      <div class="section-divider">顏色</div>
+      <div class="form-group" style="margin-top:10px;">
+        <label>選擇顏色（可多選）</label>
+        <div id="pm-color-picker" class="color-picker-grid"></div>
+      </div>
+
+      <div class="section-divider">尺寸</div>
+      <div class="form-row-4" style="margin-top:10px;">
+        <div class="form-group">
+          <label>長</label>
+          <div class="input-unit">
+            <input type="number" id="pm-length" placeholder="0" min="0" step="0.1">
+            <span class="unit">cm</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>寬</label>
+          <div class="input-unit">
+            <input type="number" id="pm-width" placeholder="0" min="0" step="0.1">
+            <span class="unit">cm</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>高</label>
+          <div class="input-unit">
+            <input type="number" id="pm-height" placeholder="0" min="0" step="0.1">
+            <span class="unit">cm</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>總長</label>
+          <div class="input-unit">
+            <input type="number" id="pm-total-length" placeholder="0" min="0" step="0.1">
+            <span class="unit">cm</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider">庫存與價格</div>
+      <div class="form-row-3" style="margin-top:10px;">
+        <div class="form-group">
+          <label>數量</label>
+          <input type="number" id="pm-stock" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>售價</label>
+          <div class="input-unit">
+            <input type="number" id="pm-price" placeholder="0" min="0" step="1">
+            <span class="unit">元</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>進貨價</label>
+          <div class="input-unit">
+            <input type="number" id="pm-cost" placeholder="0" min="0" step="1">
+            <span class="unit">元</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>備註</label>
+        <textarea id="pm-notes" placeholder="選填備註…"></textarea>
+      </div>
+
+      <!-- Google Drive 說明 -->
+      <details style="margin-top:4px;">
+        <summary style="font-size:12.5px;color:var(--text-muted);cursor:pointer;user-select:none;">📎 如何轉換 Google 雲端硬碟連結？</summary>
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-top:8px;font-size:12.5px;color:var(--text-muted);line-height:1.8;">
+          <strong style="color:var(--text);">步驟：</strong><br>
+          1. 在 Google 雲端硬碟對圖片按右鍵 → <strong>取得連結</strong> → 設定為「知道連結的任何人」<br>
+          2. 複製連結，格式如：<code style="background:var(--border);padding:1px 5px;border-radius:4px;font-size:11.5px;">https://drive.google.com/file/d/<strong>【檔案ID】</strong>/view</code><br>
+          3. 取出中間的 <strong>檔案ID</strong>，貼到下方框中，系統會自動轉換：<br>
+          <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+            <input id="drive-url-input" type="text" placeholder="貼上 Google Drive 分享連結" style="flex:1;font-size:12px;">
+            <button class="btn btn-outline btn-sm" onclick="convertDriveUrl()">轉換</button>
+          </div>
+          <div id="drive-url-result" style="margin-top:6px;font-size:12px;color:var(--primary);word-break:break-all;"></div>
+        </div>
+      </details>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('product-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveProduct()">💾 儲存商品</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 進貨 ===== -->
+<div class="modal-overlay" id="purchase-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">新增進貨單</div>
+      <button class="modal-close" onclick="closeModal('purchase-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>商品 *</label>
+        <select id="pu-product"><option value="">選擇商品…</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>進貨數量 *</label>
+          <input type="number" id="pu-qty" placeholder="0" min="1">
+        </div>
+        <div class="form-group">
+          <label>進貨日期 *</label>
+          <input type="date" id="pu-date">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>台幣金額（TWD）</label>
+          <div class="input-unit">
+            <input type="number" id="pu-twd" placeholder="0" min="0" step="1">
+            <span class="unit">元</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>韓元金額（KRW）</label>
+          <div class="input-unit">
+            <input type="number" id="pu-krw" placeholder="0" min="0" step="1">
+            <span class="unit">₩</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>備註</label>
+        <textarea id="pu-notes" placeholder="選填備註…" style="min-height:60px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('purchase-modal')">取消</button>
+      <button class="btn btn-primary" onclick="savePurchase()">✅ 確認進貨</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 分類 ===== -->
+<div class="modal-overlay" id="category-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title" id="cat-modal-title">新增分類</div>
+      <button class="modal-close" onclick="closeModal('category-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cat-editing">
+      <div class="form-group">
+        <label>分類名稱 *</label>
+        <input type="text" id="cat-name" placeholder="例：木製品">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('category-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveCategory()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 顏色 ===== -->
+<div class="modal-overlay" id="color-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title" id="col-modal-title">新增顏色</div>
+      <button class="modal-close" onclick="closeModal('color-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="col-editing">
+      <div class="form-row">
+        <div class="form-group">
+          <label>顏色名稱 *</label>
+          <input type="text" id="col-name" placeholder="例：深棕色">
+        </div>
+        <div class="form-group">
+          <label>顏色色碼 *</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="color" id="col-hex" value="#6b4c3b" style="width:48px;height:38px;padding:2px;cursor:pointer;flex-shrink:0;">
+            <input type="text" id="col-hex-text" placeholder="#6b4c3b" oninput="syncColorHex(this)" style="flex:1;">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('color-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveColor()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 刪除確認 ===== -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">確認刪除</div>
+      <button class="modal-close" onclick="closeModal('delete-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;" id="delete-msg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('delete-modal')">取消</button>
+      <button class="btn btn-danger" id="delete-confirm-btn">🗑 確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// =============================================
+// STATE
+// =============================================
+let GAS_URL = localStorage.getItem('gas_url') || '';
+let allProducts   = [];
+let allPurchases  = [];
+let allCategories = [];
+let allColors     = [];
+let categories = allCategories;
+let colors     = allColors;
+
+// ── 快取控制 ──
+let cacheLoaded   = false;   // 是否已做過完整初始載入
+let cacheTime     = 0;       // 上次載入時間戳
+const CACHE_TTL   = 5 * 60 * 1000; // 5 分鐘後才重新拉資料
+
+function isCacheValid() {
+  return cacheLoaded && (Date.now() - cacheTime < CACHE_TTL);
+}
+function invalidateCache() {
+  cacheLoaded = false;
+}
+
+// =============================================
+// NAVIGATION
+// =============================================
+const pageTitles = {dashboard:'控制台',products:'商品管理',purchases:'進貨管理',catalog:'分類與顏色管理',import:'匯入資料',settings:'系統設定'};
+const pageActions = {
+  products: `<button class="btn btn-primary" onclick="openProductModal()">＋ 新增商品</button>`,
+  purchases:`<button class="btn btn-primary" onclick="openPurchaseModal()">＋ 新增進貨</button>`,
+};
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.getAttribute('onclick')?.includes(page)) n.classList.add('active');
+  });
+  document.getElementById('topbar-title').textContent = pageTitles[page];
+  document.getElementById('topbar-actions').innerHTML = pageActions[page]||'';
+  // 切換分頁時若快取有效，直接用記憶體資料渲染，不重新呼叫 GAS
+  if(!isCacheValid()) {
+    initLoad().then(()=> renderPage(page));
+  } else {
+    renderPage(page);
+  }
+}
+
+function renderPage(page) {
+  if(page==='dashboard') renderDashboard();
+  if(page==='products')  { renderProductsTable(allProducts); refreshProductFilters(); }
+  if(page==='purchases') renderPurchasesTable([...allPurchases].reverse());
+  if(page==='catalog')   { renderCategoriesTable(); renderColorsTable(); }
+  if(page==='settings')  loadSettings();
+  if(page==='import')    { switchImpTab(impCurrentTab); }
+}
+
+// =============================================
+// INIT LOAD — 一次載入所有資料並快取
+// =============================================
+async function initLoad() {
+  setConnStatus('loading');
+  try {
+    const [pRes, purRes, catRes, colRes] = await Promise.all([
+      callGAS('getProducts'),
+      callGAS('getPurchases'),
+      callGAS('getCategories'),
+      callGAS('getColors'),
+    ]);
+    allProducts   = pRes.data  || [];
+    allPurchases  = purRes.data || [];
+    allCategories = catRes.data || [];
+    allColors     = colRes.data || [];
+    categories = allCategories;
+    colors     = allColors;
+    cacheLoaded = true;
+    cacheTime   = Date.now();
+    setConnStatus('ok');
+  } catch(e) {
+    setConnStatus('error');
+    throw e;
+  }
+}
+
+// 連線狀態指示器
+function setConnStatus(status) {
+  const dot   = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  const ind   = document.getElementById('conn-indicator');
+  if(!dot) return;
+  const map = {
+    loading: { color:'#e8a23a', text:'連線中…',  bg:'var(--warning-light)' },
+    ok:      { color:'#3d7a6f', text:'已連線',    bg:'var(--primary-light)' },
+    error:   { color:'#d95f5f', text:'連線失敗',  bg:'var(--danger-light)'  },
+    idle:    { color:'#bab5ad', text:'未連線',    bg:'var(--surface2)'      },
+  };
+  const s = map[status] || map.idle;
+  dot.style.background    = s.color;
+  label.textContent       = s.text;
+  label.style.color       = s.color;
+  ind.style.background    = s.bg;
+  ind.style.borderColor   = s.color + '55';
+}
+
+// 手動刷新（讓使用者可以強制重新拉資料）
+async function refreshAll() {
+  invalidateCache();
+  const page = document.querySelector('.nav-item.active')?.getAttribute('onclick')?.match(/'(\w+)'/)?.[1] || 'dashboard';
+  await initLoad();
+  renderPage(page);
+  showToast('資料已更新 ✅', 'success');
+}
+
+// 開啟 GAS 編輯器
+function openGasEditor(e) {
+  e.preventDefault();
+  if(!GAS_URL) { showToast('請先設定 GAS URL', 'warning'); return; }
+  // 從 Web App URL 推算編輯器 URL
+  const m = GAS_URL.match(/\/macros\/s\/([^/]+)/);
+  if(m) {
+    window.open('https://script.google.com/', '_blank');
+  } else {
+    window.open('https://script.google.com/', '_blank');
+  }
+}
+
+// =============================================
+// API — 全部用 GET + payload 參數
+// 解決 POST no-cors body 被瀏覽器丟棄的問題
+// GAS URL 長度限制約 8KB，足夠傳遞商品資料
+// =============================================
+// GAS_CHUNK_SIZE：每次 GET 最多帶幾筆資料
+// GAS URL 安全上限約 6KB，每筆商品約 200~400 bytes，保守設 12 筆
+const GAS_CHUNK_SIZE = 12;
+
+async function callGAS(action, data={}) {
+  if(!GAS_URL){ showToast('請先在系統設定中填入 GAS URL','warning'); throw new Error('No GAS URL'); }
+
+  // batchImport：自動分批，並行送出
+  if(action === 'batchImport' && data.items && data.items.length > GAS_CHUNK_SIZE) {
+    return callGAS_chunked(data);
+  }
+
+  return callGAS_get(action, data);
+}
+
+// 單次 GET 請求
+async function callGAS_get(action, data={}) {
+  const payload = encodeURIComponent(JSON.stringify({action, ...data}));
+  const url     = GAS_URL + '?action=' + action + '&payload=' + payload;
+  try {
+    const res   = await fetch(url, {method:'GET', redirect:'follow'});
+    const text  = await res.text();
+    const clean = text.trim().replace(/^\uFEFF/, '');
+    let json;
+    try { json = JSON.parse(clean); }
+    catch(e) { throw new Error('GAS 回應格式錯誤：' + clean.substring(0,120)); }
+    if(json.error) throw new Error(json.error);
+    return json;
+  } catch(e) {
+    if(e.message.includes('Failed to fetch')) throw new Error('無法連線，請確認 GAS URL 與部署設定');
+    throw e;
+  }
+}
+
+// 分批並行送出（全部同時發，速度快）
+async function callGAS_chunked(data) {
+  const items  = data.items;
+  const type   = data.type;
+  const chunks = [];
+  for(let i = 0; i < items.length; i += GAS_CHUNK_SIZE) {
+    chunks.push(items.slice(i, i + GAS_CHUNK_SIZE));
+  }
+
+  // 更新進度文字
+  const progress = document.getElementById('imp-progress');
+  if(progress) progress.textContent = `分 ${chunks.length} 批同時送出…`;
+
+  // 全部 chunk 同時發出（Promise.all）
+  const results = await Promise.all(
+    chunks.map(chunk => callGAS_get('batchImport', {type, items: chunk}))
+  );
+
+  // 合計結果
+  const total = results.reduce((acc, r) => ({
+    ok:   (acc.ok   || 0) + (r.ok   || 0),
+    fail: (acc.fail || 0) + (r.fail || 0),
+  }), {ok:0, fail:0});
+
+  return total;
+}
+// =============================================
+// DASHBOARD
+// =============================================
+async function loadDashboard() {
+  if(!isCacheValid()) {
+    await initLoad();
+  }
+  renderDashboard();
+}
+
+function renderDashboard() {
+  try {
+    const now=new Date();
+    const thisMonth = allPurchases.filter(p=>{
+      const d=new Date(p.date);
+      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    });
+    const lowStock = allProducts.filter(p=>Number(p.stock)<=Number(p.safety)&&Number(p.safety)>0&&Number(p.stock)>0);
+    const zeroStock= allProducts.filter(p=>Number(p.stock)===0);
+    document.getElementById('stat-total').textContent=allProducts.length;
+    document.getElementById('stat-month').textContent=thisMonth.length;
+    document.getElementById('stat-low').textContent=lowStock.length;
+    document.getElementById('stat-zero').textContent=zeroStock.length;
+    renderLowStock([...lowStock,...zeroStock]);
+    renderRecentPurchases([...allPurchases].reverse().slice(0,6));
+  } catch(e){ renderDemoStats(); }
+}
+
+function renderDemoStats(){
+  ['stat-total','stat-month','stat-low','stat-zero'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('low-stock-list').innerHTML=`<div class="empty-state"><div class="empty-icon">🔗</div><div class="empty-text">請先設定 GAS 連線</div></div>`;
+  document.getElementById('recent-purchases').innerHTML=`<div class="empty-state"><div class="empty-icon">🔗</div><div class="empty-text">請先設定 GAS 連線</div></div>`;
+}
+
+function renderLowStock(items){
+  const el=document.getElementById('low-stock-list');
+  if(!items.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">所有商品庫存充足</div></div>`;return;}
+  el.innerHTML=`<table><thead><tr><th>商品</th><th>庫存</th><th>安全庫存</th></tr></thead><tbody>${items.map(p=>`
+    <tr>
+      <td><div class="product-info">
+        <div class="product-img">${p.imageUrl?`<img src="${convertDriveUrlDirect(p.imageUrl)}" onerror="this.parentElement.innerHTML='📦'">`:'📦'}</div>
+        <div class="product-name">${p.name}</div>
+      </div></td>
+      <td><span class="badge ${Number(p.stock)===0?'badge-red':'badge-yellow'}">${p.stock}</span></td>
+      <td style="color:var(--text-muted);font-size:12px;">${p.safety||0}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function renderRecentPurchases(items){
+  const el=document.getElementById('recent-purchases');
+  if(!items.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">尚無進貨紀錄</div></div>`;return;}
+  el.innerHTML=`<table><thead><tr><th>日期</th><th>商品</th><th>數量</th></tr></thead><tbody>${items.map(p=>`
+    <tr>
+      <td style="font-size:12px;color:var(--text-muted);">${fmtDate(p.date)}</td>
+      <td>${p.productName}</td>
+      <td><span class="badge badge-green">+${p.qty}</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// =============================================
+// PRODUCTS
+// =============================================
+async function loadProducts(){
+  if(!isCacheValid()){
+    document.getElementById('products-tbody').innerHTML=`<tr><td colspan="10"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>`;
+    await initLoad().catch(()=>{
+      document.getElementById('products-tbody').innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請確認 GAS 設定</div></div></td></tr>`;
+    });
+  }
+  renderProductsTable(allProducts);
+  refreshProductFilters();
+}
+
+function renderProductsTable(products){
+  const tbody=document.getElementById('products-tbody');
+  document.getElementById('product-count').textContent=`共 ${products.length} 項`;
+  if(!products.length){
+    tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">尚無商品，點擊「新增商品」開始</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=products.map(p=>{
+    const stock=Number(p.stock);
+    const safety=Number(p.safety||10);
+    const status=stock===0?'<span class="badge badge-red">零庫存</span>':
+                 stock<=safety?'<span class="badge badge-yellow">低庫存</span>':
+                 '<span class="badge badge-green">正常</span>';
+    // colors
+    const colorArr=parseColors(p.colors);
+    const colorDots=colorArr.length
+      ?colorArr.map(c=>{
+        const col=colors.find(x=>x.name===c)||{hex:'#ccc'};
+        return `<span class="color-dot" style="background:${col.hex}" title="${c}"></span>`;
+      }).join('')
+      :'<span style="color:var(--text-light);font-size:12px;">—</span>';
+    // size
+    const size=[p.length,p.width,p.height].filter(Boolean).map(v=>v+'cm').join(' × ')||'—';
+    const totalLen=p.totalLength?p.totalLength+'cm':'—';
+    return `<tr>
+      <td><div class="product-info">
+        <div class="product-img">${p.imageUrl?`<img src="${convertDriveUrlDirect(p.imageUrl)}" onerror="this.parentElement.innerHTML='📦'">`:'📦'}</div>
+        <div>
+          <div class="product-name">${p.name}</div>
+          <div class="product-id">#${p.id}</div>
+        </div>
+      </div></td>
+      <td><span class="badge badge-gray">${p.category||'—'}</span></td>
+      <td><div class="color-dots">${colorDots}</div></td>
+      <td style="font-size:12.5px;color:var(--text-muted);">${size}</td>
+      <td style="font-size:12.5px;color:var(--text-muted);">${totalLen}</td>
+      <td><strong>${stock}</strong></td>
+      <td style="font-size:13px;">${p.price?'$'+Number(p.price).toLocaleString():'—'}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${p.cost?'$'+Number(p.cost).toLocaleString():'—'}</td>
+      <td>${status}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn btn-outline btn-xs" onclick='editProduct(${JSON.stringify(p).replace(/'/g,"&#39;")})'>✏️</button>
+        <button class="btn btn-outline btn-xs" style="color:var(--danger);margin-left:4px;" onclick="confirmDelete('product','${p.id}','${p.name}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterProducts(){
+  const q=document.getElementById('product-search').value.toLowerCase();
+  const cat=document.getElementById('category-filter').value;
+  const col=document.getElementById('color-filter').value;
+  const filtered=allProducts.filter(p=>{
+    const matchQ=p.name.toLowerCase().includes(q);
+    const matchCat=!cat||p.category===cat;
+    const matchCol=!col||parseColors(p.colors).includes(col);
+    return matchQ&&matchCat&&matchCol;
+  });
+  renderProductsTable(filtered);
+}
+
+function refreshProductFilters(){
+  const catSel=document.getElementById('category-filter');
+  const curCat=catSel.value;
+  catSel.innerHTML='<option value="">所有分類</option>'+allCategories.map(c=>`<option value="${c.name}" ${c.name===curCat?'selected':''}>${c.name}</option>`).join('');
+  const colSel=document.getElementById('color-filter');
+  const curCol=colSel.value;
+  colSel.innerHTML='<option value="">所有顏色</option>'+allColors.map(c=>`<option value="${c.name}" ${c.name===curCol?'selected':''}>${c.name}</option>`).join('');
+}
+
+function openProductModal(product=null){
+  document.getElementById('product-modal-title').textContent=product?'編輯商品':'新增商品';
+  document.getElementById('pm-id').value       =product?.id||'';
+  document.getElementById('pm-name').value     =product?.name||'';
+  document.getElementById('pm-image').value    =product?.imageUrl||'';
+  document.getElementById('pm-length').value   =product?.length||'';
+  document.getElementById('pm-width').value    =product?.width||'';
+  document.getElementById('pm-height').value   =product?.height||'';
+  document.getElementById('pm-total-length').value=product?.totalLength||'';
+  document.getElementById('pm-stock').value    =product?.stock||'';
+  document.getElementById('pm-price').value    =product?.price||'';
+  document.getElementById('pm-cost').value     =product?.cost||'';
+  document.getElementById('pm-notes').value    =product?.notes||'';
+
+  // Category dropdown
+  const catSel=document.getElementById('pm-category');
+  catSel.innerHTML='<option value="">選擇分類</option>'+allCategories.map(c=>`<option value="${c.name}" ${c.name===product?.category?'selected':''}>${c.name}</option>`).join('');
+
+  // Color picker
+  const selColors=parseColors(product?.colors);
+  const picker=document.getElementById('pm-color-picker');
+  picker.innerHTML=allColors.map(c=>{
+    const sel=selColors.includes(c.name);
+    const lightness=hexLightness(c.hex);
+    const textColor=lightness>160?'#2c2a27':'#ffffff';
+    return `<div class="color-option ${sel?'selected':''}" 
+      style="border-color:${c.hex};background:${sel?c.hex:'transparent'};color:${sel?textColor:'var(--text)'};"
+      onclick="toggleColorOption(this,'${c.name}','${c.hex}')">
+      <span class="dot" style="background:${c.hex};border:1px solid rgba(0,0,0,.15);"></span>${c.name}
+    </div>`;
+  }).join('');
+
+  // Image preview
+  previewImage();
+  openModal('product-modal');
+}
+
+function toggleColorOption(el,name,hex){
+  el.classList.toggle('selected');
+  const lightness=hexLightness(hex);
+  const textColor=lightness>160?'#2c2a27':'#ffffff';
+  if(el.classList.contains('selected')){
+    el.style.background=hex;
+    el.style.color=textColor;
+  } else {
+    el.style.background='transparent';
+    el.style.color='var(--text)';
+  }
+}
+
+function editProduct(p){ openProductModal(p); }
+
+async function saveProduct(){
+  const id=document.getElementById('pm-id').value;
+  const name=document.getElementById('pm-name').value.trim();
+  const category=document.getElementById('pm-category').value;
+  if(!name){showToast('請填入商品名稱','error');return;}
+  if(!category){showToast('請選擇分類','error');return;}
+
+  const selectedColors=[...document.querySelectorAll('#pm-color-picker .color-option.selected')].map(el=>el.textContent.trim());
+
+  const data={
+    id,name,category,
+    imageUrl:document.getElementById('pm-image').value.trim(),
+    colors:selectedColors.join(','),
+    length:document.getElementById('pm-length').value||'',
+    width:document.getElementById('pm-width').value||'',
+    height:document.getElementById('pm-height').value||'',
+    totalLength:document.getElementById('pm-total-length').value||'',
+    stock:document.getElementById('pm-stock').value||0,
+    price:document.getElementById('pm-price').value||'',
+    cost:document.getElementById('pm-cost').value||'',
+    notes:document.getElementById('pm-notes').value.trim(),
+  };
+  try{
+    await callGAS(id?'updateProduct':'addProduct',data);
+    showToast(id?'商品已更新 ✅':'商品已新增 ✅','success');
+    closeModal('product-modal');
+    invalidateCache(); await initLoad(); renderPage('products');
+  }catch(e){ showToast('儲存失敗：'+e.message,'error'); }
+}
+
+function convertDriveUrlDirect(url){
+  if(!url) return '';
+  if(url.includes('drive.google.com/thumbnail?')) return url;
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w400`;
+  const m2 = url.match(/id=([a-zA-Z0-9_-]+)/);
+  if(m2) return `https://drive.google.com/thumbnail?id=${m2[1]}&sz=w400`;
+  if(/^[a-zA-Z0-9_-]{25,}$/.test(url.trim()))
+    return `https://drive.google.com/thumbnail?id=${url.trim()}&sz=w400`;
+  return url;
+}
+
+function previewImage(){
+  const url=document.getElementById('pm-image').value.trim();
+  const wrap=document.getElementById('image-preview-wrap');
+  const img=document.getElementById('image-preview');
+  if(url){
+    wrap.style.display='block';
+    img.src=convertDriveUrlDirect(url);
+    img.onerror=()=>{img.src='';wrap.style.display='none';};
+  } else { wrap.style.display='none'; }
+}
+
+// =============================================
+// PURCHASES
+// =============================================
+async function loadPurchases(){
+  if(!isCacheValid()){
+    document.getElementById('purchases-tbody').innerHTML=`<tr><td colspan="6"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>`;
+    await initLoad().catch(()=>{
+      document.getElementById('purchases-tbody').innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請確認 GAS 設定</div></div></td></tr>`;
+    });
+  }
+  renderPurchasesTable([...allPurchases].reverse());
+}
+
+function renderPurchasesTable(purchases){
+  const tbody=document.getElementById('purchases-tbody');
+  document.getElementById('purchase-count').textContent=`共 ${purchases.length} 筆`;
+  if(!purchases.length){
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">尚無進貨紀錄</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=purchases.map(p=>`
+    <tr>
+      <td style="font-size:13px;color:var(--text-muted);white-space:nowrap;">${fmtDate(p.date)}</td>
+      <td><strong>${p.productName}</strong></td>
+      <td><span class="badge badge-green">＋${p.qty}</span></td>
+      <td style="font-size:13px;">${p.twd?'$'+Number(p.twd).toLocaleString():'—'}</td>
+      <td style="font-size:13px;">${p.krw?'₩'+Number(p.krw).toLocaleString():'—'}</td>
+      <td style="font-size:13px;color:var(--text-muted);">${p.notes||'—'}</td>
+    </tr>`).join('');
+}
+
+function filterPurchases(){
+  const q=document.getElementById('purchase-search').value.toLowerCase();
+  const filtered=allPurchases.filter(p=>
+    p.productName?.toLowerCase().includes(q));
+  renderPurchasesTable([...filtered].reverse());
+}
+
+function openPurchaseModal(){
+  document.getElementById('pu-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('pu-qty').value='';
+  document.getElementById('pu-twd').value='';
+  document.getElementById('pu-krw').value='';
+  document.getElementById('pu-notes').value='';
+  const sel=document.getElementById('pu-product');
+  sel.innerHTML='<option value="">選擇商品…</option>'+allProducts.map(p=>`<option value="${p.id}">${p.name}（庫存：${p.stock}）</option>`).join('');
+  openModal('purchase-modal');
+}
+
+async function savePurchase(){
+  const productId=document.getElementById('pu-product').value;
+  const qty=document.getElementById('pu-qty').value;
+  const date=document.getElementById('pu-date').value;
+  if(!productId){showToast('請選擇商品','error');return;}
+  if(!qty||Number(qty)<=0){showToast('請填入有效數量','error');return;}
+  if(!date){showToast('請選擇日期','error');return;}
+  const product=allProducts.find(p=>p.id===productId);
+  const data={productId,productName:product?.name||'',qty:Number(qty),date,
+    twd:document.getElementById('pu-twd').value||'',
+    krw:document.getElementById('pu-krw').value||'',
+    notes:document.getElementById('pu-notes').value.trim()};
+  try{
+    await callGAS('addPurchase',data);
+    showToast(`進貨成功：${product?.name} ＋${qty} ✅`,'success');
+    closeModal('purchase-modal');
+    invalidateCache(); await initLoad(); renderPage('purchases');
+  }catch(e){ showToast('進貨失敗：'+e.message,'error'); }
+}
+
+// =============================================
+// CATALOG — 分類 & 顏色
+// =============================================
+async function loadCatalog(){
+  if(!isCacheValid()){
+    document.getElementById('categories-tbody').innerHTML=`<tr><td colspan="3"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>`;
+    document.getElementById('colors-tbody').innerHTML=`<tr><td colspan="4"><div class="loading"><div class="spinner"></div>載入中…</div></td></tr>`;
+    await initLoad().catch(e=>showToast('載入失敗：'+e.message,'error'));
+  }
+  renderCategoriesTable();
+  renderColorsTable();
+}
+
+function renderCategoriesTable(){
+  const tbody=document.getElementById('categories-tbody');
+  if(!allCategories.length){
+    tbody.innerHTML=`<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">🏷️</div><div class="empty-text">尚無分類</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=allCategories.map(c=>{
+    const count=allProducts.filter(p=>p.category===c.name).length;
+    return `<tr>
+      <td><strong>${c.name}</strong></td>
+      <td><span class="badge badge-gray">${count} 項</span></td>
+      <td style="text-align:right;">
+        <button class="btn btn-outline btn-xs" onclick="openCategoryModal('${c.id}','${c.name}')">✏️</button>
+        <button class="btn btn-outline btn-xs" style="color:var(--danger);margin-left:4px;" onclick="confirmDeleteCatalog('category','${c.id}','${c.name}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderColorsTable(){
+  const tbody=document.getElementById('colors-tbody');
+  if(!allColors.length){
+    tbody.innerHTML=`<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🎨</div><div class="empty-text">尚無顏色</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=allColors.map(c=>{
+    const count=allProducts.filter(p=>parseColors(p.colors).includes(c.name)).length;
+    return `<tr>
+      <td><span style="width:24px;height:24px;display:inline-block;border-radius:50%;background:${c.hex};border:2px solid rgba(0,0,0,.12);"></span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:6px;">
+        <span>${c.name}</span>
+        <span style="font-size:11px;font-family:monospace;color:var(--text-light);">${c.hex}</span>
+      </span></td>
+      <td><span class="badge badge-gray">${count} 項</span></td>
+      <td style="text-align:right;">
+        <button class="btn btn-outline btn-xs" onclick="openColorModal('${c.id}','${c.name}','${c.hex}')">✏️</button>
+        <button class="btn btn-outline btn-xs" style="color:var(--danger);margin-left:4px;" onclick="confirmDeleteCatalog('color','${c.id}','${c.name}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Category modal — 接受 id+name（編輯）或無參數（新增）
+function openCategoryModal(id=null, name=''){
+  document.getElementById('cat-modal-title').textContent=id?'編輯分類':'新增分類';
+  document.getElementById('cat-editing').value=id||'';
+  document.getElementById('cat-name').value=name;
+  openModal('category-modal');
+}
+function editCategory(i){ const c=allCategories[i]; openCategoryModal(c.id, c.name); }
+async function saveCategory(){
+  const name=document.getElementById('cat-name').value.trim();
+  if(!name){showToast('請填入分類名稱','error');return;}
+  const editId=document.getElementById('cat-editing').value;
+  try{
+    if(editId){
+      await callGAS('updateCategory',{id:editId, name});
+      showToast('分類已更新 ✅','success');
+    } else {
+      if(allCategories.find(c=>c.name===name)){showToast('此分類已存在','warning');return;}
+      await callGAS('addCategory',{name});
+      showToast('分類已新增 ✅','success');
+    }
+    closeModal('category-modal');
+    invalidateCache(); await initLoad(); renderCategoriesTable(); refreshProductFilters();
+  }catch(e){ showToast('儲存失敗：'+e.message,'error'); }
+}
+
+// Color modal
+function openColorModal(id=null, name='', hex='#888888'){
+  document.getElementById('col-modal-title').textContent=id?'編輯顏色':'新增顏色';
+  document.getElementById('col-editing').value=id||'';
+  document.getElementById('col-name').value=name;
+  document.getElementById('col-hex').value=hex;
+  document.getElementById('col-hex-text').value=hex;
+  openModal('color-modal');
+}
+function editColor(i){ const c=allColors[i]; openColorModal(c.id, c.name, c.hex); }
+function syncColorHex(input){
+  const val=input.value.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(val)) document.getElementById('col-hex').value=val;
+}
+document.addEventListener('input',e=>{
+  if(e.target.id==='col-hex') document.getElementById('col-hex-text').value=e.target.value;
+});
+async function saveColor(){
+  const name=document.getElementById('col-name').value.trim();
+  const hex=document.getElementById('col-hex').value;
+  if(!name){showToast('請填入顏色名稱','error');return;}
+  const editId=document.getElementById('col-editing').value;
+  try{
+    if(editId){
+      await callGAS('updateColor',{id:editId, name, hex});
+      showToast('顏色已更新 ✅','success');
+    } else {
+      if(allColors.find(c=>c.name===name)){showToast('此顏色已存在','warning');return;}
+      await callGAS('addColor',{name, hex});
+      showToast('顏色已新增 ✅','success');
+    }
+    closeModal('color-modal');
+    invalidateCache(); await initLoad(); renderColorsTable();
+  }catch(e){ showToast('儲存失敗：'+e.message,'error'); }
+}
+
+// Delete catalog item
+function confirmDeleteCatalog(type, id, name){
+  document.getElementById('delete-msg').textContent=`確定要刪除「${name}」嗎？已套用此${type==='category'?'分類':'顏色'}的商品不受影響。`;
+  document.getElementById('delete-confirm-btn').onclick=async()=>{
+    try{
+      await callGAS(type==='category'?'deleteCategory':'deleteColor', {id});
+      showToast('已刪除 ✅','success');
+      closeModal('delete-modal');
+      invalidateCache(); await initLoad(); renderCategoriesTable(); renderColorsTable();
+    }catch(e){ showToast('刪除失敗：'+e.message,'error'); }
+  };
+  openModal('delete-modal');
+}
+
+// =============================================
+// DELETE PRODUCT
+// =============================================
+function confirmDelete(type,id,name){
+  document.getElementById('delete-msg').textContent=`確定要刪除「${name}」嗎？此操作無法復原。`;
+  document.getElementById('delete-confirm-btn').onclick=async()=>{
+    try{
+      await callGAS('deleteProduct',{id});
+      showToast('已刪除 ✅','success');
+      closeModal('delete-modal');
+      invalidateCache(); await initLoad(); renderPage('products');
+    }catch(e){ showToast('刪除失敗：'+e.message,'error'); }
+  };
+  openModal('delete-modal');
+}
+
+// =============================================
+// SETTINGS
+// =============================================
+function loadSettings(){
+  document.getElementById('gas-url').value=GAS_URL;
+}
+function saveGasUrl(){
+  const url=document.getElementById('gas-url').value.trim();
+  if(!url){showToast('請填入 GAS URL','error');return;}
+  GAS_URL=url;
+  localStorage.setItem('gas_url',url);
+  showToast('設定已儲存 ✅','success');
+  invalidateCache();
+}
+async function testConnection(){
+  const statusEl=document.getElementById('connection-status');
+  statusEl.innerHTML=`<span style="color:var(--text-muted);">🔌 測試中…</span>`;
+  try{
+    await callGAS('ping');
+    statusEl.innerHTML=`<span style="color:var(--primary);">✅ 連線成功！GAS 運作正常</span>`;
+  }catch(e){
+    statusEl.innerHTML=`<span style="color:var(--danger);">❌ 連線失敗：${e.message}</span>`;
+  }
+}
+
+// =============================================
+// GOOGLE DRIVE URL HELPER
+// =============================================
+function convertDriveUrl(){
+  const input=document.getElementById('drive-url-input').value.trim();
+  const result=convertDriveUrlDirect(input);
+  const el=document.getElementById('drive-url-result');
+  if(result&&result!==input){
+    el.innerHTML=`✅ 轉換成功！<br><a href="javascript:void(0)" onclick="applyDriveUrl('${result}')" style="color:var(--primary);text-decoration:underline;">${result}</a><br><span style="color:var(--text-muted);font-size:11px;">點擊連結套用至圖片網址欄位</span>`;
+  } else {
+    el.innerHTML=`<span style="color:var(--text-muted);">無法轉換，請確認連結格式</span>`;
+  }
+}
+function applyDriveUrl(url){
+  document.getElementById('pm-image').value=url;
+  previewImage();
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function parseColors(str){
+  if(!str) return [];
+  return str.split(',').map(s=>s.trim()).filter(Boolean);
+}
+function hexLightness(hex){
+  if(!hex||hex.length<7) return 128;
+  const r=parseInt(hex.slice(1,3),16);
+  const g=parseInt(hex.slice(3,5),16);
+  const b=parseInt(hex.slice(5,7),16);
+  return (r*299+g*587+b*114)/1000;
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const date=new Date(d);
+  if(isNaN(date)) return d;
+  return `${date.getFullYear()}/${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')}`;
+}
+
+// =============================================
+// MODAL
+// =============================================
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); });
+});
+
+// =============================================
+// TOAST
+// =============================================
+function showToast(msg,type=''){
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+
+
+// =============================================
+// IMPORT PAGE
+// =============================================
+const IMP_SCHEMAS = {
+  products: {
+    title: '📦 商品欄位說明',
+    cols: [
+      { key:'name',        label:'商品名稱',      required:true,  hint:'任意文字' },
+      { key:'category',    label:'分類',          required:false, hint:'需與分類管理一致' },
+      { key:'colors',      label:'顏色',          required:false, hint:'多個用逗號分隔，例：白色,粉紅色' },
+      { key:'length',      label:'長(cm)',         required:false, hint:'數字' },
+      { key:'width',       label:'寬(cm)',         required:false, hint:'數字' },
+      { key:'height',      label:'高(cm)',         required:false, hint:'數字' },
+      { key:'totalLength', label:'總長(cm)',        required:false, hint:'數字' },
+      { key:'stock',       label:'數量',           required:false, hint:'數字，預設 0' },
+      { key:'price',       label:'售價',           required:false, hint:'數字' },
+      { key:'cost',        label:'進貨價',          required:false, hint:'數字' },
+      { key:'imageUrl',    label:'圖片網址',        required:false, hint:'Google Drive 連結' },
+      { key:'notes',       label:'備註',           required:false, hint:'任意文字' },
+    ],
+    examples: [
+      ['OB11洋裝A款','連身洋裝','白色,粉紅色','','','','','10','350','180','',''],
+      ['OB11上衣B款','上衣','黑色','8','5','12','','5','280','140','',''],
+    ],
+    gasAction: 'batchImport', type: 'products',
+  },
+  purchases: {
+    title: '🚚 進貨紀錄欄位說明',
+    cols: [
+      { key:'date',        label:'日期',     required:true,  hint:'格式：2024-01-15' },
+      { key:'productName', label:'商品名稱',  required:true,  hint:'填商品名稱即可' },
+      { key:'qty',         label:'數量',     required:true,  hint:'正整數' },
+      { key:'twd',         label:'台幣(TWD)', required:false, hint:'數字' },
+      { key:'krw',         label:'韓元(KRW)', required:false, hint:'數字' },
+      { key:'notes',       label:'備註',     required:false, hint:'任意文字' },
+    ],
+    examples: [
+      ['2024-01-15','OB11洋裝A款','5','900','35000','春季補貨'],
+      ['2024-02-01','OB11上衣B款','3','600','',''],
+    ],
+    gasAction: 'batchImport', type: 'purchases',
+  },
+  categories: {
+    title: '🏷️ 分類欄位說明',
+    cols: [
+      { key:'name', label:'分類名稱', required:true, hint:'任意文字，不可重複' },
+    ],
+    examples: [['連身洋裝'],['上衣'],['裙子'],['外套']],
+    gasAction: 'batchImport', type: 'categories',
+  },
+  colors: {
+    title: '🎨 顏色欄位說明',
+    cols: [
+      { key:'name', label:'顏色名稱', required:true,  hint:'任意文字，不可重複' },
+      { key:'hex',  label:'HEX色碼',  required:false, hint:'例：#f4a0b0，留空預設灰色' },
+    ],
+    examples: [['白色','#f5f5f5'],['粉紅色','#f4a0b0'],['藍色','#4a7fbf']],
+    gasAction: 'batchImport', type: 'colors',
+  },
+};
+
+let impCurrentTab = 'products';
+
+function switchImpTab(tab) {
+  impCurrentTab = tab;
+  document.querySelectorAll('.imp-tab').forEach(b => {
+    b.style.background = '';
+    b.style.color = '';
+    b.classList.add('btn-outline');
+    b.classList.remove('btn-primary');
+  });
+  const active = document.getElementById('itab-' + tab);
+  active.style.background = 'var(--primary)';
+  active.style.color = '#fff';
+  active.classList.remove('btn-outline');
+
+  const schema = IMP_SCHEMAS[tab];
+  document.getElementById('imp-schema-title').textContent = schema.title;
+
+  // 欄位說明表
+  const thead = schema.cols.map(c =>
+    `<th style="padding:6px 12px;font-size:11.5px;white-space:nowrap;">
+      ${c.label}${c.required ? ' <span style="color:var(--danger);">*</span>' : ''}
+    </th>`
+  ).join('');
+  const thint = schema.cols.map(c =>
+    `<td style="padding:4px 12px;font-size:11.5px;color:var(--text-light);">${c.hint}</td>`
+  ).join('');
+  document.getElementById('imp-schema-table').innerHTML =
+    `<table style="border-collapse:collapse;"><thead><tr>${thead}</tr></thead><tbody><tr>${thint}</tr></tbody></table>`;
+
+  document.getElementById('imp-textarea').value = '';
+  document.getElementById('imp-preview-card').style.display = 'none';
+  document.getElementById('imp-submit-btn').disabled = true;
+  document.getElementById('imp-progress').textContent = '';
+}
+
+function pasteExample() {
+  const schema = IMP_SCHEMAS[impCurrentTab];
+  const header = schema.cols.map(c => c.label).join('\t');
+  const rows   = schema.examples.map(r => r.join('\t')).join('\n');
+  document.getElementById('imp-textarea').value = header + '\n' + rows;
+  document.getElementById('imp-has-header').checked = true;
+  renderPreview();
+}
+
+function parseTabular(raw) {
+  // 支援 tab 分隔（試算表複製）或逗號分隔（CSV）
+  const lines = raw.trim().split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  return lines.map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g, '')));
+}
+
+function renderPreview() {
+  const raw = document.getElementById('imp-textarea').value;
+  const hasHeader = document.getElementById('imp-has-header').checked;
+  const schema = IMP_SCHEMAS[impCurrentTab];
+  const card = document.getElementById('imp-preview-card');
+  const btn  = document.getElementById('imp-submit-btn');
+
+  if (!raw.trim()) { card.style.display = 'none'; btn.disabled = true; return; }
+
+  const allRows = parseTabular(raw);
+  const dataRows = hasHeader ? allRows.slice(1) : allRows;
+  const cols = schema.cols;
+
+  if (!dataRows.length) { card.style.display = 'none'; btn.disabled = true; return; }
+
+  // 檢查必填欄位
+  const warnings = [];
+  dataRows.forEach((row, ri) => {
+    cols.forEach((col, ci) => {
+      if (col.required && !row[ci]) warnings.push(`第 ${ri+1} 列「${col.label}」不可空白`);
+    });
+  });
+  document.getElementById('imp-warning').textContent = warnings.slice(0,3).join('；') + (warnings.length > 3 ? `…等 ${warnings.length} 個問題` : '');
+
+  // 渲染預覽表頭
+  document.getElementById('imp-preview-head').innerHTML =
+    '<tr>' + cols.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
+
+  // 渲染前 20 筆
+  const preview = dataRows.slice(0, 20);
+  document.getElementById('imp-preview-body').innerHTML = preview.map((row, ri) => {
+    const cells = cols.map((col, ci) => {
+      const val = row[ci] || '';
+      const missing = col.required && !val;
+      return `<td style="${missing ? 'background:var(--danger-light);color:var(--danger);' : ''}">${val || '<span style="color:var(--text-light);">—</span>'}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('imp-preview-count').textContent =
+    `共 ${dataRows.length} 筆${dataRows.length > 20 ? '（預覽前 20 筆）' : ''}`;
+  card.style.display = 'block';
+  btn.disabled = warnings.length > 0;
+}
+
+async function runImport() {
+  const raw       = document.getElementById('imp-textarea').value;
+  const hasHeader = document.getElementById('imp-has-header').checked;
+  const schema    = IMP_SCHEMAS[impCurrentTab];
+  const cols      = schema.cols;
+  const allRows   = parseTabular(raw);
+  const dataRows  = hasHeader ? allRows.slice(1) : allRows;
+
+  const btn      = document.getElementById('imp-submit-btn');
+  const progress = document.getElementById('imp-progress');
+  btn.disabled   = true;
+  btn.textContent = '準備中…';
+
+  // 前端組好所有資料物件
+  const items = dataRows.map(row => {
+    const obj = {};
+    cols.forEach((col, ci) => { obj[col.key] = (row[ci] || '').trim(); });
+
+    // 進貨：前端先查好 productId，GAS 就不用再查一次
+    if (impCurrentTab === 'purchases') {
+      const match = allProducts.find(p => p.name.trim() === obj.productName.trim());
+      obj.productId = match ? match.id : '';
+    }
+    return obj;
+  });
+
+  progress.textContent = `送出 ${items.length} 筆資料…`;
+
+  try {
+    // 一次 request 送全部
+    const res = await callGAS('batchImport', {
+      type:  schema.type,
+      items: items,
+    });
+
+    const ok   = res.ok   || 0;
+    const fail = res.fail || 0;
+    btn.textContent = '⬆️ 開始匯入';
+    btn.disabled    = false;
+    progress.innerHTML =
+      `<span style="color:var(--primary);">✅ 成功 ${ok} 筆</span>` +
+      (fail ? `<span style="color:var(--danger);margin-left:8px;">❌ 失敗 ${fail} 筆</span>` : '');
+
+    if (ok > 0) {
+      invalidateCache();
+      await initLoad();
+      showToast(`匯入完成！成功 ${ok} 筆${fail ? `，失敗 ${fail} 筆` : ''}`, 'success');
+    }
+  } catch(e) {
+    btn.textContent = '⬆️ 開始匯入';
+    btn.disabled    = false;
+    progress.innerHTML = `<span style="color:var(--danger);">❌ 匯入失敗：${e.message}</span>`;
+    showToast('匯入失敗：' + e.message, 'error');
+  }
+}
+
+// =============================================
+// INIT
+// =============================================
+initLoad().then(()=>renderPage('dashboard')).catch(()=>{
+  setConnStatus('error');
+  renderDemoStats();
+});
+</script>
+</body>
+</html>
