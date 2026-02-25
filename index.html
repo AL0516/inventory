@@ -194,7 +194,7 @@ textarea{resize:vertical;min-height:72px;}
 /* 進貨批次項目 */
 .purchase-item{
   display:grid;
-  grid-template-columns:2fr 1fr 1fr 1fr 40px;
+  grid-template-columns:2fr 1fr 1fr 1fr 1fr 40px;
   gap:12px;
   align-items:end;
   padding:12px;
@@ -1323,12 +1323,19 @@ function editPurchaseBatch(batch){
     exchangeRate: batch.items[0].twd && batch.items[0].krw 
       ? (batch.items[0].krw / batch.items[0].twd / batch.items[0].qty).toFixed(2)
       : '0.025',
-    items: batch.items.map(i => ({
-      productId: i.productId,
-      productName: i.productName,
-      qty: i.qty,
-      krw: Math.round(i.krw / i.qty) // 單價
-    }))
+    items: batch.items.map(i => {
+      // 如果有台幣就用台幣，否則用韓元換算
+      const unitTWD = i.twd ? Math.round(i.twd / i.qty) : 0;
+      const unitKRW = i.krw ? Math.round(i.krw / i.qty) : 0;
+      
+      return {
+        productId: i.productId,
+        productName: i.productName,
+        qty: i.qty,
+        twd: unitTWD,
+        krw: unitKRW
+      };
+    })
   });
 }
 
@@ -1368,6 +1375,7 @@ function addPurchaseItem(){
     productId: '',
     productName: '',
     qty: 1,
+    twd: 0,
     krw: 0
   });
   renderPurchaseItems();
@@ -1405,8 +1413,12 @@ function renderPurchaseItems(){
         <input type="number" value="${item.qty}" min="1" onchange="updatePurchaseItemQty(${idx}, this.value)" style="font-size:13px;">
       </div>
       <div class="form-group" style="margin:0;">
+        <label style="font-size:12px;">台幣單價</label>
+        <input type="number" value="${item.twd||0}" min="0" onchange="updatePurchaseItemTWD(${idx}, this.value)" style="font-size:13px;">
+      </div>
+      <div class="form-group" style="margin:0;">
         <label style="font-size:12px;">韓元單價</label>
-        <input type="number" value="${item.krw}" min="0" onchange="updatePurchaseItemKRW(${idx}, this.value)" style="font-size:13px;">
+        <input type="number" value="${item.krw||0}" min="0" onchange="updatePurchaseItemKRW(${idx}, this.value)" style="font-size:13px;">
       </div>
       <div class="form-group" style="margin:0;">
         <label style="font-size:12px;">小計</label>
@@ -1440,21 +1452,38 @@ function updatePurchaseItemQty(idx, qty){
   renderPurchaseItems();
 }
 
+function updatePurchaseItemTWD(idx, twd){
+  purchaseItems[idx].twd = Number(twd) || 0;
+  renderPurchaseItems();
+}
+
 function updatePurchaseItemKRW(idx, krw){
   purchaseItems[idx].krw = Number(krw) || 0;
   renderPurchaseItems();
 }
 
 function calculateItemTotal(item){
-  const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
-  const twd = Math.round(item.krw / rate); // KRW ÷ 匯率 = TWD
-  return (item.qty * twd).toLocaleString();
+  let unitPrice = item.twd || 0; // 優先用台幣
+  
+  // 如果沒填台幣但有韓元，用匯率換算
+  if(!unitPrice && item.krw) {
+    const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
+    unitPrice = Math.round(item.krw / rate);
+  }
+  
+  return (item.qty * unitPrice).toLocaleString();
 }
 
 function updatePurchaseTotal(){
   const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
-  const totalKRW = purchaseItems.reduce((sum, item) => sum + (item.qty * item.krw), 0);
-  const totalTWD = Math.round(totalKRW / rate); // KRW ÷ 匯率 = TWD
+  let totalTWD = 0;
+  let totalKRW = 0;
+  
+  purchaseItems.forEach(item => {
+    const unitTWD = item.twd || (item.krw ? Math.round(item.krw / rate) : 0);
+    totalTWD += item.qty * unitTWD;
+    totalKRW += item.qty * item.krw;
+  });
   
   document.getElementById('pu-total-krw').textContent = totalKRW.toLocaleString();
   document.getElementById('pu-total-twd').textContent = totalTWD.toLocaleString();
@@ -1477,15 +1506,19 @@ async function savePurchaseBatch(){
     // 批次新增每個商品的進貨記錄
     for(const item of purchaseItems) {
       const rate = Number(exchangeRate) || 40;
-      const twd = Math.round((item.qty * item.krw) / rate); // KRW ÷ 匯率 = TWD
+      
+      // 計算單筆台幣金額（優先用填入的台幣，沒有才用韓元換算）
+      const unitTWD = item.twd || (item.krw ? Math.round(item.krw / rate) : 0);
+      const totalTWD = item.qty * unitTWD;
+      const totalKRW = item.qty * item.krw;
       
       await callGAS('addPurchase', {
         productId: item.productId,
         productName: item.productName,
         qty: item.qty,
         date: date,
-        twd: twd,
-        krw: item.qty * item.krw,
+        twd: totalTWD,
+        krw: totalKRW,
         notes: batchNotes,
         batchId: batchId || 'B-' + Date.now() // 同批次共用 batchId
       });
