@@ -1383,9 +1383,11 @@ function editPurchaseBatch(batch){
     batchId: batch.batchId,
     date: batch.date,
     batchNotes: batch.notes,
-    exchangeRate: batch.items[0].twd && batch.items[0].krw 
-      ? (batch.items[0].krw / batch.items[0].twd / batch.items[0].qty).toFixed(2)
-      : '45',
+    // 優先使用記錄的匯率，沒有才反推或用預設值
+    exchangeRate: batch.items[0].exchangeRate || 
+                  (batch.items[0].twd && batch.items[0].krw 
+                    ? (batch.items[0].krw / batch.items[0].twd / batch.items[0].qty).toFixed(2)
+                    : '45'),
     items: batch.items.map(i => {
       // 如果有台幣就用台幣，否則用韓元換算
       const unitTWD = i.twd ? Math.round(i.twd / i.qty) : 0;
@@ -1574,6 +1576,17 @@ async function savePurchaseBatch(){
   if(incomplete.length) { showToast('請為所有商品選擇品項','error'); return; }
   
   try {
+    // 如果是編輯模式（有 batchId），先刪除該批次的舊記錄
+    if(batchId && batchId !== '') {
+      const oldPurchases = allPurchases.filter(p => (p.batchId || p.id) === batchId);
+      for(const oldP of oldPurchases) {
+        await callGAS('deletePurchase', { id: oldP.id });
+      }
+    }
+    
+    // 產生或使用批次ID（編輯時保留原 ID，新增時產生新 ID）
+    const finalBatchId = batchId || 'B-' + Date.now();
+    
     // 批次新增每個商品的進貨記錄
     for(const item of purchaseItems) {
       const rate = Number(exchangeRate) || 45;
@@ -1591,7 +1604,7 @@ async function savePurchaseBatch(){
         twd: totalTWD,
         krw: totalKRW,
         notes: batchNotes,
-        batchId: batchId || 'B-' + Date.now(), // 同批次共用 batchId
+        batchId: finalBatchId, // 同批次共用 batchId
         exchangeRate: exchangeRate // 記錄匯率
       });
     }
