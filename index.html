@@ -206,6 +206,11 @@ textarea{resize:vertical;min-height:72px;}
 .purchase-item:hover{
   background:var(--surface2);
 }
+
+/* 批次明細收合動畫 */
+.batch-detail {
+  transition: all 0.2s ease;
+}
 </style>
 </head>
 <body>
@@ -672,7 +677,6 @@ textarea{resize:vertical;min-height:72px;}
           <label>
             匯率（1 TWD = ? KRW）
             <a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" style="font-size:11px;margin-left:6px;color:var(--primary);text-decoration:none;" title="台灣銀行匯率">🔗 查詢台銀</a>
-            <span style="font-size:10px;color:var(--text-light);font-weight:400;margin-left:4px;">（例：45 表示 1元台幣=45韓元）</span>
           </label>
           <div class="input-unit">
             <input type="number" id="pu-exchange-rate" placeholder="45" step="0.01" min="0" oninput="updatePurchaseTotal()">
@@ -1295,11 +1299,14 @@ function renderPurchasesTable(purchases){
     const totalTWD = batch.items.reduce((sum, i) => sum + (Number(i.twd)||0), 0);
     const totalKRW = batch.items.reduce((sum, i) => sum + (Number(i.krw)||0), 0);
     
+    const batchIdSafe = bid.replace(/[^a-zA-Z0-9]/g, '_'); // 安全的 ID
+    
     return `
-      <tr style="background:var(--surface2);">
+      <tr style="background:var(--surface2);cursor:pointer;" onclick="toggleBatch('${batchIdSafe}')">
         <td colspan="7" style="padding:12px 20px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div style="display:flex;align-items:center;gap:12px;">
+              <span id="batch-icon-${batchIdSafe}" style="font-size:14px;transition:transform .2s;">▼</span>
               <span style="font-size:14px;font-weight:600;color:var(--text);">📦 ${fmtDate(batch.date)}</span>
               <span style="font-size:12px;color:var(--text-muted);">${batch.items.length} 項商品</span>
               ${batch.notes ? `<span style="font-size:12px;color:var(--text-light);">｜ ${batch.notes}</span>` : ''}
@@ -1309,14 +1316,14 @@ function renderPurchasesTable(purchases){
                 <div style="font-size:11px;color:var(--text-muted);">台幣 $${totalTWD.toLocaleString()}</div>
                 <div style="font-size:11px;color:var(--text-muted);">韓元 ₩${totalKRW.toLocaleString()}</div>
               </div>
-              <button class="btn btn-outline btn-xs" onclick='editPurchaseBatch(${JSON.stringify(batch).replace(/'/g,"&#39;")})' title="編輯">✏️</button>
-              <button class="btn btn-outline btn-xs" onclick='confirmDeleteBatch("${batch.batchId}","${fmtDate(batch.date)}")' style="color:var(--danger);" title="刪除批次">🗑</button>
+              <button class="btn btn-outline btn-xs" onclick='event.stopPropagation();editPurchaseBatch(${JSON.stringify(batch).replace(/'/g,"&#39;")})' title="編輯">✏️</button>
+              <button class="btn btn-outline btn-xs" onclick='event.stopPropagation();confirmDeleteBatch("${batch.batchId}","${fmtDate(batch.date)}")' style="color:var(--danger);" title="刪除批次">🗑</button>
             </div>
           </div>
         </td>
       </tr>
       ${batch.items.map(p => `
-        <tr>
+        <tr class="batch-detail batch-detail-${batchIdSafe}">
           <td style="width:30px;"></td>
           <td style="padding-left:0;"><strong>${p.productName}</strong></td>
           <td><span class="badge badge-green" style="font-size:11px;">＋${p.qty}</span></td>
@@ -1327,6 +1334,21 @@ function renderPurchasesTable(purchases){
       `).join('')}
     `;
   }).join('');
+}
+
+function toggleBatch(batchId) {
+  const details = document.querySelectorAll(`.batch-detail-${batchId}`);
+  const icon = document.getElementById(`batch-icon-${batchId}`);
+  
+  const isHidden = details[0]?.style.display === 'none';
+  
+  details.forEach(row => {
+    row.style.display = isHidden ? '' : 'none';
+  });
+  
+  if(icon) {
+    icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
 }
 
 async function confirmDeleteBatch(batchId, dateStr){
@@ -1363,7 +1385,7 @@ function editPurchaseBatch(batch){
     batchNotes: batch.notes,
     exchangeRate: batch.items[0].twd && batch.items[0].krw 
       ? (batch.items[0].krw / batch.items[0].twd / batch.items[0].qty).toFixed(2)
-      : '0.025',
+      : '45',
     items: batch.items.map(i => {
       // 如果有台幣就用台幣，否則用韓元換算
       const unitTWD = i.twd ? Math.round(i.twd / i.qty) : 0;
@@ -1396,7 +1418,7 @@ function openPurchaseModal(batch=null){
   document.getElementById('purchase-modal-title').textContent = batch ? '編輯進貨批次' : '新增進貨批次';
   document.getElementById('pu-batch-id').value = batch?.batchId || '';
   document.getElementById('pu-date').value = batch?.date || new Date().toISOString().split('T')[0];
-  document.getElementById('pu-exchange-rate').value = batch?.exchangeRate || '0.025';
+  document.getElementById('pu-exchange-rate').value = batch?.exchangeRate || '45';
   document.getElementById('pu-batch-notes').value = batch?.batchNotes || '';
   
   // 如果是編輯，載入該批次的商品
