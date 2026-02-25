@@ -669,9 +669,13 @@ textarea{resize:vertical;min-height:72px;}
           <input type="date" id="pu-date">
         </div>
         <div class="form-group">
-          <label>匯率（1 TWD = ? KRW）<a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" style="font-size:11px;margin-left:6px;color:var(--primary);text-decoration:none;" title="台灣銀行匯率">🔗 查詢</a></label>
+          <label>
+            匯率（1 TWD = ? KRW）
+            <a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" style="font-size:11px;margin-left:6px;color:var(--primary);text-decoration:none;" title="台灣銀行匯率">🔗 查詢台銀</a>
+            <span style="font-size:10px;color:var(--text-light);font-weight:400;margin-left:4px;">（例：45 表示 1元台幣=45韓元）</span>
+          </label>
           <div class="input-unit">
-            <input type="number" id="pu-exchange-rate" placeholder="40" step="0.01" min="0" oninput="updatePurchaseTotal()">
+            <input type="number" id="pu-exchange-rate" placeholder="45" step="0.01" min="0" oninput="updatePurchaseTotal()">
             <span class="unit" style="font-size:11px;">KRW</span>
           </div>
         </div>
@@ -693,12 +697,22 @@ textarea{resize:vertical;min-height:72px;}
 
       <!-- 總計 -->
       <div style="margin-top:20px;padding:16px;background:var(--surface2);border-radius:var(--radius-sm);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <span style="font-size:14px;font-weight:600;color:var(--text);">批次總計</span>
-          <div style="text-align:right;">
-            <div style="font-size:13px;color:var(--text-muted);">韓元：<span id="pu-total-krw">0</span> ₩</div>
-            <div style="font-size:15px;font-weight:600;color:var(--primary);margin-top:4px;">台幣：<span id="pu-total-twd">0</span> 元</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;background:var(--bg);border-radius:6px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">韓元商品小計</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text);">₩ <span id="pu-total-krw">0</span></div>
           </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">台幣商品小計</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text);">$ <span id="pu-total-twd-direct">0</span></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:12px;background:var(--primary);color:white;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;font-weight:500;">台幣總金額</span>
+          <span style="font-size:18px;font-weight:700;">$ <span id="pu-total-twd">0</span></span>
         </div>
       </div>
     </div>
@@ -1290,12 +1304,13 @@ function renderPurchasesTable(purchases){
               <span style="font-size:12px;color:var(--text-muted);">${batch.items.length} 項商品</span>
               ${batch.notes ? `<span style="font-size:12px;color:var(--text-light);">｜ ${batch.notes}</span>` : ''}
             </div>
-            <div style="display:flex;gap:16px;align-items:center;">
+            <div style="display:flex;gap:8px;align-items:center;">
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--text-muted);">台幣 $${totalTWD.toLocaleString()}</div>
                 <div style="font-size:11px;color:var(--text-muted);">韓元 ₩${totalKRW.toLocaleString()}</div>
               </div>
               <button class="btn btn-outline btn-xs" onclick='editPurchaseBatch(${JSON.stringify(batch).replace(/'/g,"&#39;")})' title="編輯">✏️</button>
+              <button class="btn btn-outline btn-xs" onclick='confirmDeleteBatch("${batch.batchId}","${fmtDate(batch.date)}")' style="color:var(--danger);" title="刪除批次">🗑</button>
             </div>
           </div>
         </td>
@@ -1312,6 +1327,32 @@ function renderPurchasesTable(purchases){
       `).join('')}
     `;
   }).join('');
+}
+
+async function confirmDeleteBatch(batchId, dateStr){
+  if(!confirm(`確定要刪除 ${dateStr} 的整批進貨記錄嗎？\n\n此操作無法復原，且會扣除對應的庫存數量。`)) return;
+  
+  try {
+    // 找出該批次的所有進貨記錄
+    const batchPurchases = allPurchases.filter(p => (p.batchId || p.id) === batchId);
+    
+    if(!batchPurchases.length) {
+      showToast('找不到該批次記錄','error');
+      return;
+    }
+    
+    // 逐筆刪除（會自動扣除庫存）
+    for(const purchase of batchPurchases) {
+      await callGAS('deletePurchase', { id: purchase.id });
+    }
+    
+    showToast(`已刪除 ${batchPurchases.length} 筆進貨記錄 ✅`, 'success');
+    invalidateCache();
+    await initLoad();
+    renderPage('purchases');
+  } catch(e) {
+    showToast('刪除失敗：' + e.message, 'error');
+  }
 }
 
 function editPurchaseBatch(batch){
@@ -1467,7 +1508,7 @@ function calculateItemTotal(item){
   
   // 如果沒填台幣但有韓元，用匯率換算
   if(!unitPrice && item.krw) {
-    const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
+    const rate = Number(document.getElementById('pu-exchange-rate').value) || 45;
     unitPrice = Math.round(item.krw / rate);
   }
   
@@ -1475,18 +1516,26 @@ function calculateItemTotal(item){
 }
 
 function updatePurchaseTotal(){
-  const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
-  let totalTWD = 0;
-  let totalKRW = 0;
+  const rate = Number(document.getElementById('pu-exchange-rate').value) || 45;
+  let totalTWDDirect = 0; // 台幣商品小計
+  let totalKRW = 0;       // 韓元商品小計
+  let totalTWDFinal = 0;  // 台幣總金額
   
   purchaseItems.forEach(item => {
-    const unitTWD = item.twd || (item.krw ? Math.round(item.krw / rate) : 0);
-    totalTWD += item.qty * unitTWD;
-    totalKRW += item.qty * item.krw;
+    if(item.twd) {
+      // 台幣計價商品
+      totalTWDDirect += item.qty * item.twd;
+      totalTWDFinal += item.qty * item.twd;
+    } else if(item.krw) {
+      // 韓元計價商品
+      totalKRW += item.qty * item.krw;
+      totalTWDFinal += Math.round((item.qty * item.krw) / rate);
+    }
   });
   
   document.getElementById('pu-total-krw').textContent = totalKRW.toLocaleString();
-  document.getElementById('pu-total-twd').textContent = totalTWD.toLocaleString();
+  document.getElementById('pu-total-twd-direct').textContent = totalTWDDirect.toLocaleString();
+  document.getElementById('pu-total-twd').textContent = totalTWDFinal.toLocaleString();
 }
 
 async function savePurchaseBatch(){
@@ -1505,7 +1554,7 @@ async function savePurchaseBatch(){
   try {
     // 批次新增每個商品的進貨記錄
     for(const item of purchaseItems) {
-      const rate = Number(exchangeRate) || 40;
+      const rate = Number(exchangeRate) || 45;
       
       // 計算單筆台幣金額（優先用填入的台幣，沒有才用韓元換算）
       const unitTWD = item.twd || (item.krw ? Math.round(item.krw / rate) : 0);
