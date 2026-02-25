@@ -1313,8 +1313,16 @@ function renderPurchasesTable(purchases){
   document.getElementById('purchase-count').textContent=`共 ${batchList.length} 批次（${purchases.length} 筆商品）`;
   
   tbody.innerHTML = batchList.map(batch => {
+    // 🔍 DEBUG: 檢查批次內的資料
+    console.log('批次:', batch.batchId, '包含', batch.items.length, '項商品');
+    batch.items.forEach(i => {
+      console.log('  -', i.productName, '台幣:', i.twd, '韓元:', i.krw, '型別:', typeof i.twd, typeof i.krw);
+    });
+    
     const totalTWD = batch.items.reduce((sum, i) => sum + (Number(i.twd)||0), 0);
     const totalKRW = batch.items.reduce((sum, i) => sum + (Number(i.krw)||0), 0);
+    
+    console.log('  總計 → 台幣:', totalTWD, '韓元:', totalKRW);
     
     const batchIdSafe = batch.batchId.replace(/[^a-zA-Z0-9]/g, '_'); // 安全的 ID
     
@@ -2044,6 +2052,9 @@ async function runImport() {
   btn.disabled   = true;
   btn.textContent = '準備中…';
 
+  // 為匯入資料產生批次ID（同一次匯入共用）
+  const importBatchId = 'B-' + Date.now();
+  
   // 前端組好所有資料物件
   const items = dataRows.map(row => {
     const obj = {};
@@ -2053,6 +2064,11 @@ async function runImport() {
     if (impCurrentTab === 'purchases') {
       const match = allProducts.find(p => p.name.trim() === obj.productName.trim());
       obj.productId = match ? match.id : '';
+      
+      // 同一次匯入的進貨記錄共用批次ID（如果試算表沒有填 batchId）
+      if(!obj.batchId || obj.batchId === '') {
+        obj.batchId = importBatchId;
+      }
     }
     return obj;
   });
