@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- 
-  庫存管理系統 v15.0
+  庫存管理系統 v15.1
   Build Date: 2026-02-25
   © 2026 Diiiitto Inventory System
 -->
@@ -245,7 +245,7 @@ textarea{resize:vertical;min-height:72px;}
       <span class="icon">⚙️</span>系統設定
     </div>
   </nav>
-  <div class="sidebar-footer">v15.0 · 2026-02-25</div>
+  <div class="sidebar-footer">v15.1 · 2026-02-25</div>
 </aside>
 
 <!-- MAIN -->
@@ -799,12 +799,12 @@ textarea{resize:vertical;min-height:72px;}
 
 <script>
 // =============================================
-// 庫存管理系統 v15.0
+// 庫存管理系統 v15.1
 // Build: 2026-02-25
 // =============================================
 // VERSION
 // =============================================
-const APP_VERSION = 'v15.0';
+const APP_VERSION = 'v15.1';
 const BUILD_DATE = '2026-02-25';
 
 // =============================================
@@ -1350,8 +1350,21 @@ function renderPurchasesTable(purchases){
       ${batch.items.map(p => `
         <tr class="batch-detail batch-detail-${batchIdSafe}">
           <td style="width:30px;"></td>
-          <td style="padding-left:0;"><strong>${p.productName}</strong></td>
-          <td><span class="badge badge-green" style="font-size:11px;">＋${p.qty}</span></td>
+          <td style="padding-left:0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${(() => {
+                const product = allProducts.find(prod => prod.id === p.productId);
+                if(product?.imageUrl) {
+                  return \`<img src="\${convertDriveUrlDirect(product.imageUrl)}" 
+                    style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2);" 
+                    onerror="this.style.display='none'">\`;
+                }
+                return '';
+              })()}
+              <strong>${p.productName}</strong>
+            </div>
+          </td>
+          <td><span class="badge badge-green" style="font-size:11px;">${p.qty}</span></td>
           <td style="font-size:12px;color:var(--text-muted);">${(p.twd && Number(p.twd) > 0)?'$'+Number(p.twd).toLocaleString():'—'}</td>
           <td style="font-size:12px;color:var(--text-muted);">${(p.krw && Number(p.krw) > 0)?'₩'+Number(p.krw).toLocaleString():'—'}</td>
           <td colspan="2"></td>
