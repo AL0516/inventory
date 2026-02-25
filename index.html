@@ -185,6 +185,22 @@ textarea{resize:vertical;min-height:72px;}
 .config-banner-text strong{display:block;margin-bottom:2px;font-size:14px;}
 
 @media(max-width:900px){.stats-grid{grid-template-columns:1fr 1fr;}.settings-grid{grid-template-columns:1fr;}}
+
+/* 進貨批次項目 */
+.purchase-item{
+  display:grid;
+  grid-template-columns:2fr 1fr 1fr 1fr 40px;
+  gap:12px;
+  align-items:end;
+  padding:12px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  margin-bottom:8px;
+}
+.purchase-item:hover{
+  background:var(--surface2);
+}
 </style>
 </head>
 <body>
@@ -1218,20 +1234,82 @@ async function loadPurchases(){
 
 function renderPurchasesTable(purchases){
   const tbody=document.getElementById('purchases-tbody');
-  document.getElementById('purchase-count').textContent=`共 ${purchases.length} 筆`;
   if(!purchases.length){
-    tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">尚無進貨紀錄</div></div></td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">尚無進貨紀錄</div></div></td></tr>`;
+    document.getElementById('purchase-count').textContent='共 0 批次';
     return;
   }
-  tbody.innerHTML=purchases.map(p=>`
-    <tr>
-      <td style="font-size:13px;color:var(--text-muted);white-space:nowrap;">${fmtDate(p.date)}</td>
-      <td><strong>${p.productName}</strong></td>
-      <td><span class="badge badge-green">＋${p.qty}</span></td>
-      <td style="font-size:13px;">${p.twd?'$'+Number(p.twd).toLocaleString():'—'}</td>
-      <td style="font-size:13px;">${p.krw?'₩'+Number(p.krw).toLocaleString():'—'}</td>
-      <td style="font-size:13px;color:var(--text-muted);">${p.notes||'—'}</td>
-    </tr>`).join('');
+  
+  // 依 batchId 分組
+  const batches = {};
+  purchases.forEach(p => {
+    const bid = p.batchId || p.id; // 舊資料沒 batchId 就用自己的 id
+    if(!batches[bid]) batches[bid] = [];
+    batches[bid].push(p);
+  });
+  
+  const batchList = Object.entries(batches).map(([bid, items]) => ({
+    batchId: bid,
+    items: items,
+    date: items[0].date,
+    notes: items[0].notes
+  }));
+  
+  document.getElementById('purchase-count').textContent=`共 ${batchList.length} 批次（${purchases.length} 筆商品）`;
+  
+  tbody.innerHTML = batchList.map(batch => {
+    const totalTWD = batch.items.reduce((sum, i) => sum + (Number(i.twd)||0), 0);
+    const totalKRW = batch.items.reduce((sum, i) => sum + (Number(i.krw)||0), 0);
+    
+    return `
+      <tr style="background:var(--surface2);">
+        <td colspan="7" style="padding:12px 20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:14px;font-weight:600;color:var(--text);">📦 ${fmtDate(batch.date)}</span>
+              <span style="font-size:12px;color:var(--text-muted);">${batch.items.length} 項商品</span>
+              ${batch.notes ? `<span style="font-size:12px;color:var(--text-light);">｜ ${batch.notes}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:16px;align-items:center;">
+              <div style="text-align:right;">
+                <div style="font-size:11px;color:var(--text-muted);">台幣 $${totalTWD.toLocaleString()}</div>
+                <div style="font-size:11px;color:var(--text-muted);">韓元 ₩${totalKRW.toLocaleString()}</div>
+              </div>
+              <button class="btn btn-outline btn-xs" onclick='editPurchaseBatch(${JSON.stringify(batch).replace(/'/g,"&#39;")})' title="編輯">✏️</button>
+            </div>
+          </div>
+        </td>
+      </tr>
+      ${batch.items.map(p => `
+        <tr>
+          <td style="width:30px;"></td>
+          <td style="padding-left:0;"><strong>${p.productName}</strong></td>
+          <td><span class="badge badge-green" style="font-size:11px;">＋${p.qty}</span></td>
+          <td style="font-size:12px;color:var(--text-muted);">${p.twd?'$'+Number(p.twd).toLocaleString():'—'}</td>
+          <td style="font-size:12px;color:var(--text-muted);">${p.krw?'₩'+Number(p.krw).toLocaleString():'—'}</td>
+          <td colspan="2"></td>
+        </tr>
+      `).join('')}
+    `;
+  }).join('');
+}
+
+function editPurchaseBatch(batch){
+  // 載入該批次資料到 Modal
+  openPurchaseModal({
+    batchId: batch.batchId,
+    date: batch.date,
+    batchNotes: batch.notes,
+    exchangeRate: batch.items[0].twd && batch.items[0].krw 
+      ? (batch.items[0].twd / batch.items[0].krw / batch.items[0].qty).toFixed(4)
+      : '0.025',
+    items: batch.items.map(i => ({
+      productId: i.productId,
+      productName: i.productName,
+      qty: i.qty,
+      krw: Math.round(i.krw / i.qty) // 單價
+    }))
+  });
 }
 
 function filterPurchases(){
@@ -1241,35 +1319,151 @@ function filterPurchases(){
   renderPurchasesTable([...filtered].reverse());
 }
 
-function openPurchaseModal(){
-  document.getElementById('pu-date').value=new Date().toISOString().split('T')[0];
-  document.getElementById('pu-qty').value='';
-  document.getElementById('pu-twd').value='';
-  document.getElementById('pu-krw').value='';
-  document.getElementById('pu-notes').value='';
-  const sel=document.getElementById('pu-product');
-  sel.innerHTML='<option value="">選擇商品…</option>'+allProducts.map(p=>`<option value="${p.id}">${p.name}（庫存：${p.stock}）</option>`).join('');
+// ═════════════════════════════════════════════════
+// 進貨批次管理
+// ═════════════════════════════════════════════════
+let purchaseItems = []; // 批次內的商品列表
+
+function openPurchaseModal(batch=null){
+  document.getElementById('purchase-modal-title').textContent = batch ? '編輯進貨批次' : '新增進貨批次';
+  document.getElementById('pu-batch-id').value = batch?.batchId || '';
+  document.getElementById('pu-date').value = batch?.date || new Date().toISOString().split('T')[0];
+  document.getElementById('pu-exchange-rate').value = batch?.exchangeRate || '0.025';
+  document.getElementById('pu-batch-notes').value = batch?.batchNotes || '';
+  
+  // 如果是編輯，載入該批次的商品
+  if(batch && batch.items) {
+    purchaseItems = batch.items.map(i => ({...i}));
+  } else {
+    purchaseItems = [];
+    addPurchaseItem(); // 預設加一個空白項目
+  }
+  
+  renderPurchaseItems();
   openModal('purchase-modal');
 }
 
-async function savePurchase(){
-  const productId=document.getElementById('pu-product').value;
-  const qty=document.getElementById('pu-qty').value;
-  const date=document.getElementById('pu-date').value;
-  if(!productId){showToast('請選擇商品','error');return;}
-  if(!qty||Number(qty)<=0){showToast('請填入有效數量','error');return;}
-  if(!date){showToast('請選擇日期','error');return;}
-  const product=allProducts.find(p=>p.id===productId);
-  const data={productId,productName:product?.name||'',qty:Number(qty),date,
-    twd:document.getElementById('pu-twd').value||'',
-    krw:document.getElementById('pu-krw').value||'',
-    notes:document.getElementById('pu-notes').value.trim()};
-  try{
-    await callGAS('addPurchase',data);
-    showToast(`進貨成功：${product?.name} ＋${qty} ✅`,'success');
+function addPurchaseItem(){
+  purchaseItems.push({
+    productId: '',
+    productName: '',
+    qty: 1,
+    krw: 0
+  });
+  renderPurchaseItems();
+}
+
+function removePurchaseItem(index){
+  purchaseItems.splice(index, 1);
+  renderPurchaseItems();
+}
+
+function renderPurchaseItems(){
+  const container = document.getElementById('pu-items-list');
+  if(!purchaseItems.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">點擊「新增商品」開始</div>';
+    updatePurchaseTotal();
+    return;
+  }
+  
+  container.innerHTML = purchaseItems.map((item, idx) => `
+    <div class="purchase-item">
+      <div class="form-group" style="margin:0;">
+        <label style="font-size:12px;">商品</label>
+        <select onchange="updatePurchaseItemProduct(${idx}, this.value)" style="font-size:13px;">
+          <option value="">選擇商品…</option>
+          ${allProducts.map(p => `<option value="${p.id}" ${p.id===item.productId?'selected':''}>${p.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label style="font-size:12px;">數量</label>
+        <input type="number" value="${item.qty}" min="1" onchange="updatePurchaseItemQty(${idx}, this.value)" style="font-size:13px;">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label style="font-size:12px;">韓元單價</label>
+        <input type="number" value="${item.krw}" min="0" onchange="updatePurchaseItemKRW(${idx}, this.value)" style="font-size:13px;">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label style="font-size:12px;">小計</label>
+        <div style="font-size:13px;font-weight:600;color:var(--primary);padding:8px 0;">${calculateItemTotal(item)} 元</div>
+      </div>
+      <button onclick="removePurchaseItem(${idx})" class="btn btn-outline btn-xs" style="color:var(--danger);padding:6px 8px;align-self:end;" title="移除">🗑</button>
+    </div>
+  `).join('');
+  
+  updatePurchaseTotal();
+}
+
+function updatePurchaseItemProduct(idx, productId){
+  const product = allProducts.find(p => p.id === productId);
+  purchaseItems[idx].productId = productId;
+  purchaseItems[idx].productName = product?.name || '';
+}
+
+function updatePurchaseItemQty(idx, qty){
+  purchaseItems[idx].qty = Number(qty) || 1;
+  renderPurchaseItems();
+}
+
+function updatePurchaseItemKRW(idx, krw){
+  purchaseItems[idx].krw = Number(krw) || 0;
+  renderPurchaseItems();
+}
+
+function calculateItemTotal(item){
+  const rate = Number(document.getElementById('pu-exchange-rate').value) || 0.025;
+  const total = item.qty * item.krw * rate;
+  return Math.round(total).toLocaleString();
+}
+
+function updatePurchaseTotal(){
+  const rate = Number(document.getElementById('pu-exchange-rate').value) || 0.025;
+  const totalKRW = purchaseItems.reduce((sum, item) => sum + (item.qty * item.krw), 0);
+  const totalTWD = Math.round(totalKRW * rate);
+  
+  document.getElementById('pu-total-krw').textContent = totalKRW.toLocaleString();
+  document.getElementById('pu-total-twd').textContent = totalTWD.toLocaleString();
+}
+
+async function savePurchaseBatch(){
+  const date = document.getElementById('pu-date').value;
+  const exchangeRate = document.getElementById('pu-exchange-rate').value;
+  const batchNotes = document.getElementById('pu-batch-notes').value.trim();
+  const batchId = document.getElementById('pu-batch-id').value;
+  
+  if(!date) { showToast('請選擇日期','error'); return; }
+  if(!purchaseItems.length) { showToast('請至少新增一個商品','error'); return; }
+  
+  // 檢查是否所有商品都已選擇
+  const incomplete = purchaseItems.filter(i => !i.productId);
+  if(incomplete.length) { showToast('請為所有商品選擇品項','error'); return; }
+  
+  try {
+    // 批次新增每個商品的進貨記錄
+    for(const item of purchaseItems) {
+      const rate = Number(exchangeRate) || 0.025;
+      const twd = Math.round(item.qty * item.krw * rate);
+      
+      await callGAS('addPurchase', {
+        productId: item.productId,
+        productName: item.productName,
+        qty: item.qty,
+        date: date,
+        twd: twd,
+        krw: item.qty * item.krw,
+        notes: batchNotes,
+        batchId: batchId || 'B-' + Date.now() // 同批次共用 batchId
+      });
+    }
+    
+    showToast(`進貨成功：${purchaseItems.length} 項商品 ✅`, 'success');
     closeModal('purchase-modal');
-    invalidateCache(); await initLoad(); renderPage('purchases');
-  }catch(e){ showToast('進貨失敗：'+e.message,'error'); }
+    invalidateCache();
+    await initLoad();
+    renderPage('purchases');
+  } catch(e) {
+    showToast('進貨失敗：' + e.message, 'error');
+  }
 }
 
 // =============================================
@@ -1533,7 +1727,7 @@ const IMP_SCHEMAS = {
   purchases: {
     title: '🚚 進貨紀錄欄位說明',
     cols: [
-      { key:'date',        label:'日期',     required:true,  hint:'格式：2024-01-15' },
+      { key:'date',        label:'日期',     required:true,  hint:'格式：2024/01/15' },
       { key:'productName', label:'商品名稱',  required:true,  hint:'填商品名稱即可' },
       { key:'qty',         label:'數量',     required:true,  hint:'正整數' },
       { key:'twd',         label:'台幣(TWD)', required:false, hint:'數字' },
@@ -1541,8 +1735,8 @@ const IMP_SCHEMAS = {
       { key:'notes',       label:'備註',     required:false, hint:'任意文字' },
     ],
     examples: [
-      ['2024-01-15','OB11洋裝A款','5','900','35000','春季補貨'],
-      ['2024-02-01','OB11上衣B款','3','600','',''],
+      ['2024/01/15','OB11洋裝A款','5','900','35000','春季補貨'],
+      ['2024/02/01','OB11上衣B款','3','600','',''],
     ],
     gasAction: 'batchImport', type: 'purchases',
   },
