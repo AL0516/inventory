@@ -1591,7 +1591,8 @@ async function savePurchaseBatch(){
         twd: totalTWD,
         krw: totalKRW,
         notes: batchNotes,
-        batchId: batchId || 'B-' + Date.now() // 同批次共用 batchId
+        batchId: batchId || 'B-' + Date.now(), // 同批次共用 batchId
+        exchangeRate: exchangeRate // 記錄匯率
       });
     }
     
