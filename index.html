@@ -1278,10 +1278,14 @@ function renderPurchasesTable(purchases){
     return;
   }
   
-  // 依 batchId 分組
+  // 依 batchId 分組（確保編輯後的資料用同一個 batchId）
   const batches = {};
   purchases.forEach(p => {
-    const bid = p.batchId || p.id; // 舊資料沒 batchId 就用自己的 id
+    // 優先用 batchId，必須是有效值（不是空字串、null、undefined）
+    let bid = p.batchId;
+    if(!bid || bid === '' || bid === 'undefined' || bid === 'null') {
+      bid = p.id; // 舊資料或無效 batchId 就用自己的 id
+    }
     if(!batches[bid]) batches[bid] = [];
     batches[bid].push(p);
   });
@@ -1578,7 +1582,11 @@ async function savePurchaseBatch(){
   try {
     // 如果是編輯模式（有 batchId），先刪除該批次的舊記錄
     if(batchId && batchId !== '') {
-      const oldPurchases = allPurchases.filter(p => (p.batchId || p.id) === batchId);
+      // 找出該批次的所有記錄（處理空 batchId）
+      const oldPurchases = allPurchases.filter(p => {
+        const pBid = (p.batchId && p.batchId !== '') ? p.batchId : p.id;
+        return pBid === batchId;
+      });
       for(const oldP of oldPurchases) {
         await callGAS('deletePurchase', { id: oldP.id });
       }
