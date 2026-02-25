@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!-- 
+  庫存管理系統 v15.0
+  Build Date: 2026-02-25
+  © 2026 Diiiitto Inventory System
+-->
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -235,7 +240,7 @@ textarea{resize:vertical;min-height:72px;}
       <span class="icon">⚙️</span>系統設定
     </div>
   </nav>
-  <div class="sidebar-footer">小組版 · 最多 5 人</div>
+  <div class="sidebar-footer">v15.0 · 2026-02-25</div>
 </aside>
 
 <!-- MAIN -->
@@ -664,10 +669,10 @@ textarea{resize:vertical;min-height:72px;}
           <input type="date" id="pu-date">
         </div>
         <div class="form-group">
-          <label>匯率（KRW → TWD）</label>
+          <label>匯率（1 TWD = ? KRW）<a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" style="font-size:11px;margin-left:6px;color:var(--primary);text-decoration:none;" title="台灣銀行匯率">🔗 查詢</a></label>
           <div class="input-unit">
-            <input type="number" id="pu-exchange-rate" placeholder="0.025" step="0.0001" min="0" oninput="updatePurchaseTotal()">
-            <span class="unit" style="font-size:11px;">TWD/KRW</span>
+            <input type="number" id="pu-exchange-rate" placeholder="40" step="0.01" min="0" oninput="updatePurchaseTotal()">
+            <span class="unit" style="font-size:11px;">KRW</span>
           </div>
         </div>
         <div class="form-group">
@@ -775,6 +780,15 @@ textarea{resize:vertical;min-height:72px;}
 <div id="toast-container"></div>
 
 <script>
+// =============================================
+// 庫存管理系統 v15.0
+// Build: 2026-02-25
+// =============================================
+// VERSION
+// =============================================
+const APP_VERSION = 'v15.0';
+const BUILD_DATE = '2026-02-25';
+
 // =============================================
 // STATE
 // =============================================
@@ -1307,7 +1321,7 @@ function editPurchaseBatch(batch){
     date: batch.date,
     batchNotes: batch.notes,
     exchangeRate: batch.items[0].twd && batch.items[0].krw 
-      ? (batch.items[0].twd / batch.items[0].krw / batch.items[0].qty).toFixed(4)
+      ? (batch.items[0].krw / batch.items[0].twd / batch.items[0].qty).toFixed(2)
       : '0.025',
     items: batch.items.map(i => ({
       productId: i.productId,
@@ -1376,10 +1390,15 @@ function renderPurchaseItems(){
     <div class="purchase-item">
       <div class="form-group" style="margin:0;">
         <label style="font-size:12px;">商品</label>
-        <select onchange="updatePurchaseItemProduct(${idx}, this.value)" style="font-size:13px;">
-          <option value="">選擇商品…</option>
-          ${allProducts.map(p => `<option value="${p.id}" ${p.id===item.productId?'selected':''}>${p.name}</option>`).join('')}
-        </select>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <img id="pu-item-img-${idx}" src="${item.productId ? (allProducts.find(p=>p.id===item.productId)?.imageUrl ? convertDriveUrlDirect(allProducts.find(p=>p.id===item.productId).imageUrl) : '') : ''}" 
+            style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2);${item.productId && allProducts.find(p=>p.id===item.productId)?.imageUrl ? '' : 'display:none;'}" 
+            onerror="this.style.display='none'">
+          <select onchange="updatePurchaseItemProduct(${idx}, this.value)" style="font-size:13px;flex:1;">
+            <option value="">選擇商品…</option>
+            ${allProducts.map(p => `<option value="${p.id}" ${p.id===item.productId?'selected':''}>${p.name}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div class="form-group" style="margin:0;">
         <label style="font-size:12px;">數量</label>
@@ -1404,6 +1423,16 @@ function updatePurchaseItemProduct(idx, productId){
   const product = allProducts.find(p => p.id === productId);
   purchaseItems[idx].productId = productId;
   purchaseItems[idx].productName = product?.name || '';
+  
+  // 更新圖片
+  const img = document.getElementById(`pu-item-img-${idx}`);
+  if(img && product?.imageUrl) {
+    img.src = convertDriveUrlDirect(product.imageUrl);
+    img.style.display = 'block';
+    img.onerror = () => { img.style.display = 'none'; };
+  } else if(img) {
+    img.style.display = 'none';
+  }
 }
 
 function updatePurchaseItemQty(idx, qty){
@@ -1417,15 +1446,15 @@ function updatePurchaseItemKRW(idx, krw){
 }
 
 function calculateItemTotal(item){
-  const rate = Number(document.getElementById('pu-exchange-rate').value) || 0.025;
-  const total = item.qty * item.krw * rate;
-  return Math.round(total).toLocaleString();
+  const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
+  const twd = Math.round(item.krw / rate); // KRW ÷ 匯率 = TWD
+  return (item.qty * twd).toLocaleString();
 }
 
 function updatePurchaseTotal(){
-  const rate = Number(document.getElementById('pu-exchange-rate').value) || 0.025;
+  const rate = Number(document.getElementById('pu-exchange-rate').value) || 40;
   const totalKRW = purchaseItems.reduce((sum, item) => sum + (item.qty * item.krw), 0);
-  const totalTWD = Math.round(totalKRW * rate);
+  const totalTWD = Math.round(totalKRW / rate); // KRW ÷ 匯率 = TWD
   
   document.getElementById('pu-total-krw').textContent = totalKRW.toLocaleString();
   document.getElementById('pu-total-twd').textContent = totalTWD.toLocaleString();
@@ -1447,8 +1476,8 @@ async function savePurchaseBatch(){
   try {
     // 批次新增每個商品的進貨記錄
     for(const item of purchaseItems) {
-      const rate = Number(exchangeRate) || 0.025;
-      const twd = Math.round(item.qty * item.krw * rate);
+      const rate = Number(exchangeRate) || 40;
+      const twd = Math.round((item.qty * item.krw) / rate); // KRW ÷ 匯率 = TWD
       
       await callGAS('addPurchase', {
         productId: item.productId,
