@@ -1278,6 +1278,19 @@ function renderPurchasesTable(purchases){
     return;
   }
   
+
+  // 🔍 DEBUG: 檢查批次分組
+  console.log('進貨記錄總數:', purchases.length);
+  purchases.slice(0, 3).forEach(p => {
+    console.log('記錄:', {
+      id: p.id,
+      productName: p.productName,
+      batchId: p.batchId,
+      twd: p.twd,
+      krw: p.krw
+    });
+  });
+  
   // 依 batchId 分組（確保編輯後的資料用同一個 batchId）
   const batches = {};
   purchases.forEach(p => {
@@ -1331,8 +1344,8 @@ function renderPurchasesTable(purchases){
           <td style="width:30px;"></td>
           <td style="padding-left:0;"><strong>${p.productName}</strong></td>
           <td><span class="badge badge-green" style="font-size:11px;">＋${p.qty}</span></td>
-          <td style="font-size:12px;color:var(--text-muted);">${p.twd?'$'+Number(p.twd).toLocaleString():'—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${p.krw?'₩'+Number(p.krw).toLocaleString():'—'}</td>
+          <td style="font-size:12px;color:var(--text-muted);">${(p.twd && Number(p.twd) > 0)?'$'+Number(p.twd).toLocaleString():'—'}</td>
+          <td style="font-size:12px;color:var(--text-muted);">${(p.krw && Number(p.krw) > 0)?'₩'+Number(p.krw).toLocaleString():'—'}</td>
           <td colspan="2"></td>
         </tr>
       `).join('')}
