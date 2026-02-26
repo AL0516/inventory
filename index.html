@@ -1355,9 +1355,7 @@ function renderPurchasesTable(purchases){
               ${(() => {
                 const product = allProducts.find(prod => prod.id === p.productId);
                 if(product?.imageUrl) {
-                  return \`<img src="\${convertDriveUrlDirect(product.imageUrl)}" 
-                    style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2);" 
-                    onerror="this.style.display='none'">\`;
+                  return '<img src="' + convertDriveUrlDirect(product.imageUrl) + '" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2);" onerror="this.style.display=\'none\'">';
                 }
                 return '';
               })()}
